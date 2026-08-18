@@ -126,7 +126,7 @@ function playOne(name, rnd, capRound, tally){
       E.fillCells(cells, state.deck, rnd);
       coins = Math.max(0, coins + E.resolve(state, rnd).total);
       if (s < spins - 1){
-        var ch = E.rollChoices(4, rnd, round);
+        var ch = E.rollChoices(4, rnd, round, state.deck);
         var p = pick(ch, state.deck, rnd);
         if (p >= 0) state.deck.push(E.mkEntry(ch[p]));
       }

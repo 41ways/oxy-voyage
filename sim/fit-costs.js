@@ -47,7 +47,7 @@ function playOne(table, rnd, bank, capRound){
       E.fillCells(cells, st.deck, rnd);
       coins = Math.max(0, coins + E.resolve(st, rnd).total);
       if (s < E.spinsFor(round)-1){
-        var ch = E.rollChoices(4, rnd, round), best=-1, bv=0;
+        var ch = E.rollChoices(4, rnd, round, st.deck), best=-1, bv=0;
         for (var i=0;i<ch.length;i++){
           var v = table ? (table[ch[i]]||0) : greedyBase(ch[i]);
           if (v > bv){ bv = v; best = i; }

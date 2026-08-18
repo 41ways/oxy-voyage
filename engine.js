@@ -336,11 +336,11 @@ var SYMBOLS = {
 
   // ═══════════ 희귀 — 배수와 폭발
   reactor:{ e:'☢️', n:'반응로', base:3, r:'rare',
-    quorum:5, done:9,
-    d:'화물칸의 ☢️ 반응로 — 5장부터 인접한 모든 심볼 2배, 완성(9장)이면 2배에 +9씩 더, 그 전엔 +4씩만. 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재 · 🧯 소화기가 붙어 있으면 없음)',
+    quorum:4, done:7,
+    d:'화물칸의 ☢️ 반응로 — 4장부터 인접한 모든 심볼 2배, 완성(7장)이면 2배에 +9씩 더, 그 전엔 +4씩만. 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재 · 🧯 소화기가 붙어 있으면 없음)',
     effect:function(c){ var a=c.adj(), q=c.deckCount('reactor');
       for(var i=0;i<a.length;i++){
-        if(q>=5){ c.mul(a[i],2); if(q>=9) c.add(a[i],9); } else c.add(a[i],4);
+        if(q>=4){ c.mul(a[i],2); if(q>=7) c.add(a[i],9); } else c.add(a[i],4);
       }
       if(c.adj('coolant','extin').length) return;    // 냉각재·소화기가 붙어 있으면 오염 없음
       if(c.rand()<0.15){ c.deckAdd('mold'); c.note('☢️ 방사선에 곰팡이가 슬었다'); } } },
@@ -364,10 +364,10 @@ var SYMBOLS = {
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='o2') k++;
       if(k) c.addSelf(Math.min(2*k, 24)); } },
 
-  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', quorum:6, done:11,
-    d:'화물칸의 🌌 웜홀 — 6장 미만이면 0.3%, 6장부터 2.2%, 완성(11장)이면 6% 확률로 +3500. 🪐 중력 렌즈와 인접하면 세 배',
+  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', quorum:4, done:8,
+    d:'화물칸의 🌌 웜홀 — 4장 미만이면 0.3%, 4장부터 2.2%, 완성(8장)이면 6% 확률로 +3500. 🪐 중력 렌즈와 인접하면 세 배',
     effect:function(c){ var k=c.deckCount('wormhole');
-      var p = k>=11 ? 0.06 : k>=6 ? 0.022 : 0.003;
+      var p = k>=8 ? 0.06 : k>=4 ? 0.022 : 0.003;
       if(c.adj('lens').length) p *= 3;
       if(c.rand()<p){ c.addSelf(3500); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
 
@@ -413,10 +413,10 @@ var SYMBOLS = {
       var per = q>=4 ? 140 : 60;
       for(var i=0;i<t.length;i++){ c.addSelf(per + (t[i].entry.mem.acc||0)); c.kill(t[i]); } } },
 
-  aicore:{ e:'🧠', n:'AI 코어', base:5, r:'legend', quorum:3, done:5,
-    d:'인접한 심볼 1개당 — 화물칸의 🧠 AI 코어가 3장 미만이면 +1, 3장부터 +5, 완성(5장)이면 +14. 🖥️ 항법 컴퓨터는 1개당 +10 더',
+  aicore:{ e:'🧠', n:'AI 코어', base:5, r:'legend', quorum:2, done:4,
+    d:'인접한 심볼 1개당 — 화물칸의 🧠 AI 코어가 2장 미만이면 +1, 2장부터 +5, 완성(4장)이면 +14. 🖥️ 항법 컴퓨터는 1개당 +10 더',
     effect:function(c){ var k=c.adj().length; if(!k) return;
-      var q=c.deckCount('aicore'), per = q>=5 ? 14 : q>=3 ? 5 : 1;
+      var q=c.deckCount('aicore'), per = q>=4 ? 14 : q>=2 ? 5 : 1;
       c.addSelf(per*k + 10*c.adj('navcom').length); } },
 
   align:{ e:'✨', n:'초공간 정렬', base:6, r:'legend', quorum:2, done:4,
@@ -431,10 +431,10 @@ var SYMBOLS = {
       if(c.adj('coolant').length){ c.note('⚛️ 냉각재가 임계를 잡았다 — 빚 없음'); return; }
       c.debt({mul:1.30}); c.note('⚛️ 임계 돌입 — 다음 구역이 무거워진다'); } },
 
-  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', quorum:3, done:5,
-    d:'화물칸의 🩸 비상 배급 — 3장부터 +400, 완성(5장)이면 +1100, 그 전엔 +90. 다음 구역 소모량 +35% — 🎫 보급 쿠폰이 있으면 절반만',
+  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', quorum:2, done:4,
+    d:'화물칸의 🩸 비상 배급 — 2장부터 +400, 완성(4장)이면 +1100, 그 전엔 +90. 다음 구역 소모량 +35% — 🎫 보급 쿠폰이 있으면 절반만',
     effect:function(c){ var q=c.deckCount('emergency');
-      c.gain(q>=5 ? 1100 : q>=3 ? 400 : 90);
+      c.gain(q>=4 ? 1100 : q>=2 ? 400 : 90);
       var hasCoupon=false;
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='coupon'){ hasCoupon=true; break; }
       c.debt({mul: hasCoupon ? 1.175 : 1.35});
@@ -681,13 +681,19 @@ function relatedOf(id){
   return { ids: out, selfRef: selfRef };
 }
 
-/* 뽑기 후보 n개. 등급 가중치로 뽑되 중복은 안 나오게 */
-function rollChoices(n, rnd, round){
+/* 뽑기 후보 n개. 등급 가중치로 뽑되 중복은 안 나오게.
+   화물칸에 이미 쌓아둔 심볼은 더 자주 나온다(장당 +40%, 최대 4배).
+   이게 없으면 특정 희귀는 한 판에 1.8회밖에 안 떠서 정족수를 뽑기로는
+   절대 못 채운다 — 덱을 미는 선택이 스스로를 강화하게 만드는 장치임 */
+function rollChoices(n, rnd, round, deck){
   rnd = rnd || Math.random;
+  var own = {};
+  if (deck) for (var d=0; d<deck.length; d++) own[deck[d].id] = (own[deck[d].id]||0) + 1;
   var pool = [];
   for (var id in SYMBOLS){
     if (SYMBOLS[id].noOffer) continue;
-    var w = Math.round(weightFor(SYMBOLS[id].r, round));
+    var w = weightFor(SYMBOLS[id].r, round) * (1 + 0.4 * Math.min(own[id]||0, 7.5));
+    w = Math.round(w);
     for (var i=0;i<w;i++) pool.push(id);
   }
   var out = [], guard = 0;

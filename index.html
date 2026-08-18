@@ -837,7 +837,7 @@ function relRow(id){
 
 // ══════════════════════════════════ 심볼 획득 (매 스핀 후)
 function offerSymbols(){
-  const picks = rollChoices(PICK_COUNT, Math.random, game.round);
+  const picks = rollChoices(PICK_COUNT, Math.random, game.round, game.deck);
   return modal({
     title: '무엇을 실을까',
     sub: '고른 심볼이 화물칸에 들어간다 &nbsp;·&nbsp; <kbd>←→</kbd> 이동 <kbd>Space</kbd> 선택 (건너뛰기도 골라서 <kbd>Space</kbd>)',
