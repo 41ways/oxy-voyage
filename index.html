@@ -9,7 +9,7 @@
      기본 골격 — 다크 테마 고정. 슬롯판만 canvas고 나머진 DOM
      ══════════════════════════════════════════════════════ */
   :root{
-    --bg:#0d1017; --panel:#161a24; --panel2:#1f2432; --line:#2b3142;
+    --bg:transparent; --panel:rgba(20,25,36,.78); --panel2:rgba(31,36,50,.9); --line:#2b3142;
     --fg:#e8ecf4; --dim:#8f99ad; --o2:#5fd3ff; --bad:#ff6b6b; --good:#5ddb8f;
     --common:#9aa5b1; --uncommon:#4ea1ff; --rare:#b07cff; --legend:#ffb020;
   }
@@ -18,6 +18,26 @@
     margin:0; background:var(--bg); color:var(--fg);
     font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+  }
+
+  /* ── 배경 우주. 성운은 radial-gradient, 별은 box-shadow로 찍고
+        두 장을 이어 붙여 무한 스크롤시킴 (rAF 안 돌려서 공짜) */
+  #space{
+    position:fixed; inset:0; z-index:-1; overflow:hidden;
+    background:
+      radial-gradient(ellipse 60% 45% at 16% 18%, rgba(56,92,190,.22), transparent 62%),
+      radial-gradient(ellipse 55% 42% at 84% 74%, rgba(146,58,192,.17), transparent 62%),
+      radial-gradient(ellipse 75% 45% at 50% 108%, rgba(0,150,180,.14), transparent 60%),
+      radial-gradient(ellipse 40% 30% at 70% 8%,  rgba(0,200,190,.08), transparent 60%),
+      #05070d;
+  }
+  .slayer{position:absolute; left:0; top:0; width:2200px; height:2000px; animation:starfall linear infinite}
+  .slayer span{position:absolute; left:0; border-radius:50%; background:transparent}
+  @keyframes starfall{ from{transform:translateY(0)} to{transform:translateY(-2000px)} }
+  /* 화면 가장자리를 눌러서 판이 떠 보이게 */
+  #space::after{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(ellipse 75% 65% at 50% 45%, transparent 40%, rgba(3,5,10,.75) 100%);
   }
   #app{max-width:1040px; margin:0 auto; padding:16px 16px 40px}
 
@@ -37,7 +57,7 @@
   @media (max-width:640px){ .hud{grid-template-columns:1fr 1fr} }
   .tile{
     background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:10px 14px 11px; position:relative; overflow:hidden;
+    padding:10px 14px 11px; position:relative; overflow:hidden; backdrop-filter:blur(8px);
   }
   .tile span{display:block; font-size:11px; color:var(--dim); margin-bottom:2px}
   .tile b{font-size:30px; line-height:1.05; font-variant-numeric:tabular-nums; letter-spacing:-1px}
@@ -78,6 +98,7 @@
   .board{
     background:var(--panel); border:1px solid var(--line); border-radius:12px;
     padding:14px; display:flex; flex-direction:column; align-items:center; gap:12px;
+    backdrop-filter:blur(8px);
   }
   canvas{width:100%; max-width:544px; height:auto; display:block; touch-action:manipulation}
 
@@ -93,7 +114,7 @@
   #spinBtn:hover:not(:disabled){background:linear-gradient(180deg,#369ae6,#2578c4)}
 
   aside{display:flex; flex-direction:column; gap:14px}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; backdrop-filter:blur(8px)}
   .card h2{font-size:12px; color:var(--dim); margin:0 0 9px; font-weight:600; letter-spacing:.3px}
   .deck{display:flex; flex-wrap:wrap; gap:5px; max-height:212px; overflow-y:auto}
   .chip{
@@ -154,6 +175,7 @@
 </style>
 </head>
 <body>
+<div id="space"></div>
 <div id="app">
   <header>
     <div class="titlebar">
@@ -503,10 +525,10 @@ async function spin(){
     if (cell.dead){
       spotlight(cell); draw();
       beep(140, .16, 'triangle', .06);
-      await sleep(320);
+      await sleep(190);
       continue;
     }
-    if (cell.val === 0){ lightsOff(); draw(); await sleep(45); continue; }
+    if (cell.val === 0){ lightsOff(); draw(); await sleep(22); continue; }
 
     spotlight(cell); draw();
     acc += cell.val;
@@ -515,7 +537,7 @@ async function spin(){
     // 칸을 하나씩 먹을수록 음이 올라감 — 연달아 터질 때 쾌감이 붙음
     beep(430 * Math.pow(1.05, Math.min(idx, 26)), .07, 'sine', .045);
     idx++;
-    await sleep(340);
+    await sleep(165);
   }
 
   lightsOff();
@@ -738,7 +760,7 @@ function roundRect(x,y,w,h,r){
 
 function draw(){
   cx.clearRect(0,0,cv._w,cv._h);
-  cx.fillStyle = '#11141d';
+  cx.fillStyle = 'rgba(14,17,26,.66)';   // 반투명이라 뒤 별이 살짝 비침
   roundRect(PAD/2, PAD/2, cv._w-PAD, cv._h-PAD, 12); cx.fill();
 
   // 열 단위로 그림. 아직 도는 열은 스크롤 스트립, 멈춘 열은 실제 결과
@@ -985,6 +1007,32 @@ document.addEventListener('mouseover', ev => {
   if (chip) showTip(chip.dataset.id, ev.clientX, ev.clientY);
 });
 document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hideTip(); });
+
+// ══════════════════════════════════ 배경 별
+/* 층마다 크기·속도를 달리해 시차(parallax)를 냄.
+   같은 별 배치를 2000px 간격으로 두 장 깔고 통째로 올려서 이음매 없이 반복 */
+(function starfield(){
+  const sky = $('#space');
+  const H = 2000;
+  const layers = [
+    { n:130, size:1, color:'rgba(255,255,255,.8)',  dur:'190s' },
+    { n:55,  size:2, color:'rgba(190,220,255,.75)', dur:'120s' },
+    { n:18,  size:3, color:'rgba(255,238,205,.7)',  dur:'80s'  },
+  ];
+  for (const L of layers){
+    const shadow = Array.from({length:L.n}, () =>
+      `${(Math.random()*2200)|0}px ${(Math.random()*H)|0}px ${L.color}`).join(',');
+    const wrap = document.createElement('div');
+    wrap.className = 'slayer';
+    wrap.style.animationDuration = L.dur;
+    for (const off of [0, H]){
+      const s = document.createElement('span');
+      s.style.cssText = `width:${L.size}px;height:${L.size}px;top:${off}px;box-shadow:${shadow}`;
+      wrap.appendChild(s);
+    }
+    sky.appendChild(wrap);
+  }
+})();
 
 // ══════════════════════════════════ 입력
 $('#spinBtn').onclick  = spin;
