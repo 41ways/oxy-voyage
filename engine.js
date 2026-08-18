@@ -41,24 +41,21 @@ var RARITY = {
 };
 
 /* 구역별 생명유지 소모량.
-   한 판이 쉬지 않고 돌렸을 때 10분 안쪽(대략 20구역)에 끝나도록 잡았음 —
-   연출까지 재보면 한 구역이 30초쯤 걸린다.
-   1~5구역은 덱을 세울 시간을 주되 조금씩 조이고,
-   6~17구역은 1.13배로 완만하게 — 여기가 완만해야 덱의 복리가 따라붙는다.
-   18구역부터는 1.22배. 한때 1.45배로 벽을 세워봤는데, 그건 절벽이라
-   고점을 노린 덱까지 거기서 잘려나갔다. 그래서 소모량이 아니라
-   "수입이 자라는 속도"를 낮추는 쪽으로 갔음 — 배수·누적·덱 스케일 계열을
-   전부 한 단계씩 눌러서, 판이 꽉 찬 덱은 18~20구역에서 자연스럽게 후달리고
-   화물칸을 계속 불리는 통일 덱만 21구역 위로 간다 */
+   1~5구역은 덱을 세울 관문. 6구역부터는 배수 자체가 구역마다 조금씩 커진다
+   (1.11배 → 1.15 → 1.20 → 1.26 → 1.31…).
+   한 지점에서 계단처럼 올리면 그건 절벽이라 고점을 노린 덱까지 거기서 잘린다.
+   배수가 서서히 커지면, 수입이 선형으로 느는 덱은 처음엔 여유롭게 넘다가
+   어느 구역부터 서서히 못 따라가고, 복리로 크는 덱만 계속 붙어 있게 됨.
+   교차점이 곧 그 덱의 한계 구역이 된다 */
 var COSTS = [
-  90, 130, 175, 225, 275, 310, 350, 395, 450, 505,
-  575, 645, 730, 825, 935, 1055, 1190, 1450, 1770, 2160,
-  2640, 3220, 3930, 4800, 5850, 7140, 8710, 10620, 12960, 15810,
+  90, 130, 175, 225, 275, 305, 340, 380, 435, 495,
+  565, 655, 760, 895, 1050, 1250, 1500, 1800, 2180, 2670,
+  3270, 4050, 5030, 6300, 7940, 10070, 12850, 16490, 21310, 27700,
 ];
 function costFor(r){
   return r <= COSTS.length
     ? COSTS[r-1]
-    : Math.round(COSTS[COSTS.length-1] * Math.pow(1.22, r - COSTS.length));
+    : Math.round(COSTS[COSTS.length-1] * Math.pow(1.31, r - COSTS.length));
 }
 // 스핀 수는 어느 구역이든 5회로 고정.
 // 구역마다 스핀이 늘면 픽 기회까지 같이 늘어나 덱이 두 겹으로 세짐
@@ -170,9 +167,9 @@ var SYMBOLS = {
   navcom:{ e:'🖥️', n:'항법 컴퓨터', base:2, r:'uncommon', d:'같은 열의 심볼 1개당 +2',
     effect:function(c){ var k=c.col().length; if(k) c.addSelf(2*k); } },
 
-  cargo:{ e:'📦', n:'미확인 화물', base:0, r:'uncommon', d:'등장할 때마다 안이 +9씩 불어남. 🛠️ 만능공구가 열어줘야 값이 됨',
+  cargo:{ e:'📦', n:'미확인 화물', base:0, r:'uncommon', d:'등장할 때마다 안이 +12씩 불어남. 열기 전엔 0. 오래 묵힐수록 커진다',
     badge:function(en){ return '' + (en.mem.acc || 0); },
-    effect:function(c){ var en=c.self.entry; en.mem.acc=(en.mem.acc||0)+9; } },
+    effect:function(c){ var en=c.self.entry; en.mem.acc=(en.mem.acc||0)+12; } },
 
   tool:{ e:'🛠️', n:'만능공구', base:1, r:'uncommon', d:'판에서 가장 많이 쌓인 📦 미확인 화물 하나를 열어 25 + 쌓인 값',
     effect:function(c){ var t=c.all('cargo'); if(!t.length) return;
@@ -513,6 +510,22 @@ function weightFor(rar, round){
   return 60;
 }
 
+/* 어떤 심볼과 엮이는지. 설명문에 서로의 이모지를 쓰고 있으니 거기서 뽑아냄 —
+   따로 표를 만들면 설명과 어긋나기 시작해서, 설명을 유일한 출처로 둠.
+   내 설명이 가리키는 쪽(주는 관계)과, 남의 설명이 나를 가리키는 쪽(받는 관계)을 합침 */
+function relatedOf(id){
+  var me = SYMBOLS[id], out = [], selfRef = false;
+  if (!me) return { ids: out, selfRef: false };
+  for (var other in SYMBOLS){
+    var o = SYMBOLS[other];
+    var iPointAtIt = me.d.indexOf(o.e) >= 0;
+    var itPointsAtMe = o.d.indexOf(me.e) >= 0;
+    if (other === id){ selfRef = iPointAtIt; continue; }
+    if (iPointAtIt || itPointsAtMe) out.push(other);
+  }
+  return { ids: out, selfRef: selfRef };
+}
+
 /* 뽑기 후보 n개. 등급 가중치로 뽑되 중복은 안 나오게 */
 function rollChoices(n, rnd, round){
   rnd = rnd || Math.random;
@@ -536,7 +549,7 @@ var ENGINE = {
   RARITY:RARITY, SYMBOLS:SYMBOLS, START_DECK:START_DECK, COSTS:COSTS, HYDRO_BUD:HYDRO_BUD, HYDRO_MAX:HYDRO_MAX,
   costFor:costFor, spinsFor:spinsFor, mkEntry:mkEntry, baseOf:baseOf,
   shuffle:shuffle, makeCells:makeCells, fillCells:fillCells, resolve:resolve,
-  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor, purityMul:purityMul, PURITY:PURITY, PURITY_MIN:PURITY_MIN,
+  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor, relatedOf:relatedOf, purityMul:purityMul, PURITY:PURITY, PURITY_MIN:PURITY_MIN,
   ductChain:ductChain,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
