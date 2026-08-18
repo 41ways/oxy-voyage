@@ -62,7 +62,7 @@
     background:radial-gradient(ellipse 82% 72% at 50% 45%, transparent 55%, rgba(4,7,18,.55) 100%);
   }
 
-  #app{max-width:1040px; margin:0 auto; padding:16px 16px 40px}
+  #app{max-width:1180px; margin:0 auto; padding:16px 16px 40px}
 
   header{margin-bottom:14px}
   .titlebar{display:flex; align-items:center; gap:14px; padding:0 4px 10px}
@@ -109,15 +109,15 @@
     50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
   }
 
-  main{display:grid; grid-template-columns:190px minmax(0,1fr) 286px; gap:16px; column-gap:30px; align-items:start}
-  @media (max-width:1180px){ main{grid-template-columns:158px minmax(0,1fr) 244px; gap:10px; column-gap:26px} .cabinet{margin-right:40px} }
+  main{display:grid; grid-template-columns:210px minmax(0,1fr) 300px; gap:14px; column-gap:20px; align-items:start}
+  @media (max-width:1180px){ main{grid-template-columns:180px minmax(0,1fr) 262px; gap:12px} .cabinet{margin-right:96px} }
   @media (max-width:980px){ main{grid-template-columns:1fr} .cabinet{margin-right:0} }
 
   /* ── 슬롯머신 캐비닛 ─────────────────────────────
      네온 튜브 외곽 + 아치형 간판 + 릴 창 + 콘솔 + 배출구.
      캔버스만 덩그러니 놓으면 판이 아니라 표처럼 보임 */
   .cabinet{
-    position:relative; margin-right:44px;   /* 여기 + 열 간격 30px = 레버(52px)가 놀 자리 */
+    position:relative; margin-right:118px;  /* 레버가 도는 궤적만큼 차선을 비워둠 (팔 124px x sin60도 + 손잡이) */
     border-radius:64px 64px 20px 20px; padding:0 0 0;
     background:
       linear-gradient(180deg, rgba(120,74,220,.40), rgba(46,28,96,.72) 22%, rgba(18,14,44,.92)),
@@ -234,6 +234,7 @@
 
   /* 하단 배출구 */
   .payout{
+    position:relative;
     margin:12px 18px 16px; padding:9px 14px 11px; border-radius:12px;
     background:linear-gradient(180deg,#191140,#0a0722);
     border:1px solid rgba(186,124,255,.32);
@@ -248,6 +249,28 @@
     background:linear-gradient(180deg,#05030f,#120c2c);
     box-shadow:inset 0 5px 10px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.08);
   }
+  /* 스핀마다 동전 하나가 투입구로 떨어진다 */
+  .payout .coin{
+    position:absolute; left:26px; top:-30px; width:20px; height:20px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #fff6c4, #ffc43d 52%, #9c6a08);
+    box-shadow:0 0 12px rgba(255,196,61,.9), inset 0 -3px 5px rgba(0,0,0,.35);
+    opacity:0; pointer-events:none; z-index:2;
+  }
+  .payout.drop .coin{animation:coinDrop .42s cubic-bezier(.45,0,.9,.55) forwards}
+  @keyframes coinDrop{
+    0%  {opacity:0; transform:translateY(-16px) scaleX(1)}
+    18% {opacity:1; transform:translateY(-2px)  scaleX(.35)}
+    45% {opacity:1; transform:translateY(16px)  scaleX(1)}
+    72% {opacity:1; transform:translateY(30px)  scaleX(.3)}
+    100%{opacity:0; transform:translateY(38px)  scaleX(.8)}
+  }
+  .payout.drop .coinin{
+    color:#ffe6a6; border-color:#8a6a1c;
+    box-shadow:0 0 14px rgba(255,196,61,.55);
+    transition:none;
+  }
+  .payout .coinin{transition:color .5s, border-color .5s, box-shadow .5s}
+
   .payout .paylabel{
     font-size:10px; font-weight:800; letter-spacing:2.5px; color:#ffd7f2;
     text-shadow:0 0 10px rgba(255,95,210,.85), 0 0 22px rgba(255,95,210,.5);
@@ -263,12 +286,12 @@
      수직으로만 미끄러지면 레버가 아니라 핀으로 보임.
      대신 움직임은 전부 "당기는 방향(+)"으로만 — 음수로도 흔들리면 딸랑거림 */
   .lever{
-    position:absolute; right:-52px; top:150px; width:96px; height:250px;
+    position:absolute; right:-48px; top:146px; width:96px; height:262px;
     cursor:pointer; user-select:none; z-index:5;
   }
   .lever .trail{                                  /* 노브가 지나갈 호 궤적 */
-    position:absolute; left:50%; bottom:44px; width:216px; height:216px;
-    margin-left:-108px; margin-bottom:-108px; border-radius:50%;
+    position:absolute; left:50%; bottom:46px; width:248px; height:248px;
+    margin-left:-124px; margin-bottom:-124px; border-radius:50%;
     border:2px dashed transparent;
     border-right-color:rgba(255,110,110,.26);
     pointer-events:none; transition:border-right-color .2s;
@@ -277,9 +300,9 @@
   .lever.pulled .trail{border-right-color:rgba(255,150,150,.9)}
 
   .lever .arm{                                    /* 축(맨 아래)을 원점으로 회전 */
-    position:absolute; left:50%; margin-left:-25px; bottom:46px; width:50px; height:150px;
+    position:absolute; left:50%; margin-left:-25px; bottom:46px; width:50px; height:124px;
     transform-origin:50% 100%;
-    transform:rotate(-5deg);
+    transform:rotate(20deg);          /* 쉴 땐 오른쪽 위를 향해 비스듬히 */
     transition:transform .42s cubic-bezier(.18,1.7,.45,1);   /* 놓으면 튕겨 올라옴 */
     z-index:1;
   }
@@ -318,9 +341,9 @@
     font-size:10px; font-weight:700; letter-spacing:1.5px; color:#8f7fd0;
   }
 
-  .lever:hover:not(.off) .arm{transform:rotate(11deg)}
+  .lever:hover:not(.off) .arm{transform:rotate(31deg)}
   .lever.pulled .arm{
-    transform:rotate(68deg);
+    transform:rotate(60deg);
     transition:transform .1s cubic-bezier(.5,0,.9,.6);        /* 내려갈 땐 확 */
   }
 
@@ -329,16 +352,16 @@
   .lever.fresh .hint{color:#ff8a8a; animation:guideBlink 1.4s ease-in-out infinite}
   @keyframes guideBlink{ 0%,100%{opacity:.45} 45%{opacity:1} }
   @keyframes leverNudge{
-    0%,58%{transform:rotate(-5deg)}
-    70%{transform:rotate(21deg)}
-    80%{transform:rotate(3deg)}
-    90%{transform:rotate(12deg)}
-    100%{transform:rotate(-5deg)}
+    0%,58%{transform:rotate(20deg)}
+    70%{transform:rotate(46deg)}
+    80%{transform:rotate(27deg)}
+    90%{transform:rotate(38deg)}
+    100%{transform:rotate(20deg)}
   }
   .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
   /* 스핀 중엔 못 당기지만 사라지진 않게. opacity를 깎으면 없어진 걸로 보임 */
   .lever.off{pointer-events:none; filter:brightness(.72) saturate(.7)}
-  @media (max-width:1180px){ .lever{right:-44px; transform:scale(.86); transform-origin:top center} }
+  @media (max-width:1180px){ .lever{right:-40px; transform:scale(.86); transform-origin:top center} }
   @media (max-width:980px){ .lever{position:static; width:100%; height:170px; margin:0 auto 6px} }
 
   button{
@@ -353,16 +376,17 @@
   .side{display:flex; flex-direction:column; gap:14px}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; backdrop-filter:blur(10px)}
   .card h2{font-size:12px; color:var(--dim); margin:0 0 9px; font-weight:600; letter-spacing:.3px}
-  .deck{display:flex; flex-wrap:wrap; gap:5px; max-height:212px; overflow-y:auto}
+  .deck{display:flex; flex-wrap:wrap; gap:7px; max-height:60vh; overflow-y:auto}
   .chip{
-    display:flex; align-items:center; gap:3px; background:var(--panel2);
-    border:1px solid var(--line); border-radius:7px; padding:3px 6px; font-size:14px; cursor:default;
+    display:flex; align-items:center; gap:4px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:9px; padding:6px 9px; font-size:21px; cursor:default;
+    line-height:1;
   }
-  .chip i{font-style:normal; font-size:10px; color:var(--dim); font-variant-numeric:tabular-nums}
-  .chip u{text-decoration:none; font-size:9px; font-weight:700; color:var(--legend)}
+  .chip i{font-style:normal; font-size:12px; font-weight:700; color:#c7d0e4; font-variant-numeric:tabular-nums}
+  .chip u{text-decoration:none; font-size:10px; font-weight:700; color:var(--legend)}
   .chip.pick{cursor:pointer}
   .chip.pick:hover{border-color:var(--bad); background:#4a2a36}
-  #log{font-size:11px; color:var(--dim); line-height:1.65; max-height:190px; overflow-y:auto; font-variant-numeric:tabular-nums}
+  #log{font-size:11px; color:var(--dim); line-height:1.7; max-height:290px; overflow-y:auto; font-variant-numeric:tabular-nums}
   #log .hl{color:var(--fg)}
   #log .plus{color:var(--good)}
   #log .minus{color:var(--bad)}
@@ -474,6 +498,7 @@
       <div class="g"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
       <div class="g o2"><span>보유 산소</span><b id="sCoins">0</b></div>
       <div class="g cost"><span>구역 산소 소모량</span><b id="sCost">90</b><em id="sDebt"></em></div>
+      <div class="card"><h2>항해일지</h2><div id="log"></div></div>
     </aside>
 
     <!-- 가운데: 슬롯머신 -->
@@ -510,7 +535,8 @@
         <div class="seg score"><span>SCORE</span><i>8888888</i><b id="sScore">0</b></div>
       </div>
 
-      <div class="payout">
+      <div class="payout" id="payout">
+        <i class="coin"></i>
         <span class="coinin">COIN IN</span>
         <span class="slotmouth"></span>
         <span class="paylabel">✦ PAYOUT ✦</span>
@@ -522,10 +548,6 @@
       <div class="card">
         <h2>화물칸 <span id="deckCount"></span></h2>
         <div class="deck" id="deck"></div>
-      </div>
-      <div class="card">
-        <h2>항해일지</h2>
-        <div id="log"></div>
       </div>
     </aside>
   </main>
@@ -642,10 +664,22 @@ function newGame(){
 function score(){ return game.paidTotal + game.coins; }
 function best(){ return Number(localStorage.getItem('oxy.best') || 0); }
 
+/* 스핀 한 번에 동전 하나. 애니메이션을 다시 트리거하려면 클래스를 뗐다가
+   레이아웃을 한 번 읽어서 강제로 리플로우시켜야 함 */
+function dropCoin(){
+  const pay = $('#payout');
+  pay.classList.remove('drop');
+  void pay.offsetWidth;
+  pay.classList.add('drop');
+  beep(1400, .03, 'square', .035);
+  setTimeout(() => beep(950, .05, 'triangle', .045), 200 / speed);
+}
+
 // ══════════════════════════════════ 한 스핀
 async function spin(){
   if (busy || game.over || game.spinsLeft <= 0) return;
   busy = true; render();
+  dropCoin();
 
   // 결과를 먼저 확정해두고 릴을 돌림. 열이 멈추는 순간 진짜 결과가 드러남
   fillCells(game.cells, game.deck, Math.random);
@@ -750,7 +784,7 @@ function offerSymbols(){
         <div class="rar" style="color:${rar.color}">${rar.label}</div>
         <div class="ds">${s.d}</div>
         ${relRow(id)}
-        <div class="bs">기본 ${s.base} O₂</div>
+        <div class="bs">기본 O₂: ${s.base}</div>
       </div>`;
     }).join('')}</div>`,
     buttons: [{ label:'건너뛰기', value:-1 }],
@@ -1214,7 +1248,7 @@ function showTip(id, x, y){
   tip.innerHTML = `<b>${s.e} ${s.n} <span style="color:${rar.color};font-size:10px">${rar.label}</span></b>
     <div class="ds">${s.d}</div>
     ${relRow(id)}
-    <div class="ds" style="color:var(--o2)">기본 ${s.base} O₂</div>`;
+    <div class="ds" style="color:var(--o2)">기본 O₂: ${s.base}</div>`;
   tip.style.display = 'block';
   const r = tip.getBoundingClientRect();
   tip.style.left = Math.min(x+14, innerWidth - r.width - 8) + 'px';
