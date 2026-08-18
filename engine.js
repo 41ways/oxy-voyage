@@ -152,9 +152,18 @@ var SYMBOLS = {
     effect:function(c){ var t=c.adj('mold');
       for(var i=0;i<t.length;i++){ c.addSelf(22); c.kill(t[i]); } } },
 
-  hole:{ e:'🕳️', n:'미세 블랙홀', base:0, r:'uncommon', d:'인접한 심볼에서 3씩 빨아들여, 두 배로 불려서 자기 값으로',
+  hole:{ e:'🕳️', n:'미세 블랙홀', base:0, r:'uncommon',
+    d:'인접한 심볼의 기본값만큼 빨아들이고, 그 1.5배를 자기 값으로. 기본값이 큰 심볼 옆일수록 크게 먹는다',
+    /* 예전엔 인접 1개당 무조건 3을 빼고 6을 얻었음 — 옆칸이 뭐든 공짜로 +3이라
+       인접 수만 채우면 되는 밸붕이었다. 이제 대상의 "기본값"을 기준으로 삼아서
+       🔋 연료전지·💎 희귀 광물·🌡️ 임시 배관처럼 기본값이 큰 심볼과 붙여야 값이 나옴.
+       계산된 값이 아니라 기본값이라, 배수 계열로 부풀린 판에서도 안 터짐 */
     effect:function(c){ var a=c.adj();
-      for(var i=0;i<a.length;i++){ c.add(a[i],-3); c.addSelf(6); } } },
+      for(var i=0;i<a.length;i++){
+        var b = baseOf(a[i].entry);
+        if (b <= 0) continue;                       // 마이너스 심볼은 안 빨아들임
+        c.add(a[i], -b); c.addSelf(Math.round(b*1.5));
+      } } },
 
   parasite:{ e:'🪱', n:'기생체', base:1, r:'uncommon', d:'인접한 심볼 하나에서 8을 빨아 +12',
     effect:function(c){ var a=c.adj(); if(!a.length) return;
