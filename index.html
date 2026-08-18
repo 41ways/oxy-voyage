@@ -109,15 +109,17 @@
     50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
   }
 
-  main{display:grid; grid-template-columns:210px minmax(0,1fr) 300px; gap:14px; column-gap:20px; align-items:start}
-  @media (max-width:1180px){ main{grid-template-columns:172px minmax(0,1fr) 250px; gap:12px} .cabinet{margin-right:128px} }
-  @media (max-width:980px){ main{grid-template-columns:1fr} .cabinet{margin-right:0} }
+  /* 좌우 열 폭이 같아야 슬롯머신이 화면 정중앙에 온다.
+     오른쪽 열은 레버가 도는 차선 겸 화물칸 버튼 자리 */
+  main{display:grid; grid-template-columns:212px minmax(0,1fr) 212px; gap:14px; column-gap:18px; align-items:start}
+  @media (max-width:1180px){ main{grid-template-columns:176px minmax(0,1fr) 176px; gap:12px} }
+  @media (max-width:980px){ main{grid-template-columns:1fr} }
 
   /* ── 슬롯머신 캐비닛 ─────────────────────────────
      네온 튜브 외곽 + 아치형 간판 + 릴 창 + 콘솔 + 배출구.
      캔버스만 덩그러니 놓으면 판이 아니라 표처럼 보임 */
   .cabinet{
-    position:relative; margin-right:148px;  /* 레버 차선. 축은 캐비닛 바깥 20px, 팔 160px x sin50도 + 손잡이 25px */
+    position:relative;   /* 레버 차선은 오른쪽 열(212px + 간격 18px)이 맡는다 */
     border-radius:64px 64px 20px 20px; padding:0 0 0;
     background:
       linear-gradient(180deg, rgba(120,74,220,.40), rgba(46,28,96,.72) 22%, rgba(18,14,44,.92)),
@@ -374,12 +376,41 @@
   #speedBtn{min-width:56px}
 
   .side{display:flex; flex-direction:column; gap:14px}
+  .cargotoggle{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+    border-radius:12px; padding:12px 14px; font-size:13px; font-weight:800;
+    background:linear-gradient(180deg,rgba(36,26,82,.9),rgba(20,14,48,.9));
+    border:1px solid rgba(186,124,255,.45);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 0 16px rgba(120,80,220,.2);
+  }
+  .cargotoggle b{
+    font-size:12px; color:var(--o2); background:rgba(111,220,255,.12);
+    border-radius:999px; padding:3px 9px;
+  }
+  .cargotoggle:hover{border-color:var(--o2)}
+
+  /* 화물칸 서랍 — 오른쪽에서 밀려 나온다 */
+  .drawer{
+    position:fixed; right:0; top:0; bottom:0; width:min(360px, 86vw); z-index:40;
+    display:flex; flex-direction:column; padding:16px 16px 20px;
+    background:linear-gradient(180deg,rgba(30,22,66,.97),rgba(14,10,34,.98));
+    border-left:1px solid rgba(186,124,255,.45);
+    box-shadow:-20px 0 50px rgba(0,0,0,.6), inset 1px 0 0 rgba(255,255,255,.1);
+    backdrop-filter:blur(12px);
+    transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.85,.3,1);
+  }
+  .drawer.open{transform:none}
+  .dhead{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .dhead h2{font-size:14px; margin:0; flex:1; color:var(--fg)}
+  .dhead h2 span{font-size:11px; color:var(--dim); font-weight:400}
+  #cargoClose{padding:6px 11px; border-radius:9px; font-size:14px; line-height:1}
+  .drawer .deck{max-height:none; flex:1; align-content:flex-start}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; backdrop-filter:blur(10px)}
   .card h2{font-size:12px; color:var(--dim); margin:0 0 9px; font-weight:600; letter-spacing:.3px}
-  .deck{display:flex; flex-wrap:wrap; gap:7px; max-height:60vh; overflow-y:auto}
+  .deck{display:flex; flex-wrap:wrap; gap:8px; max-height:60vh; overflow-y:auto}
   .chip{
     display:flex; align-items:center; gap:4px; background:var(--panel2);
-    border:1px solid var(--line); border-radius:9px; padding:6px 9px; font-size:21px; cursor:default;
+    border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-size:23px; cursor:default;
     line-height:1;
   }
   .chip i{font-style:normal; font-size:12px; font-weight:700; color:#c7d0e4; font-variant-numeric:tabular-nums}
@@ -544,14 +575,20 @@
       </div>
     </div>
 
-    <!-- 오른쪽: 화물칸 · 항해일지 -->
+    <!-- 오른쪽: 레버가 도는 차선. 화물칸은 서랍으로 뺐다 -->
     <aside class="side">
-      <div class="card">
-        <h2>화물칸 <span id="deckCount"></span></h2>
-        <div class="deck" id="deck"></div>
-      </div>
+      <button id="cargoBtn" class="cargotoggle">📦 화물칸<b id="deckCountBtn">0</b></button>
     </aside>
   </main>
+
+  <!-- 화물칸 서랍 -->
+  <div class="drawer" id="cargo">
+    <div class="dhead">
+      <h2>화물칸 <span id="deckCount"></span></h2>
+      <button id="cargoClose" title="닫기 (C · Esc)">✕</button>
+    </div>
+    <div class="deck" id="deck"></div>
+  </div>
 </div>
 
 <div id="overlay"></div>
@@ -1234,6 +1271,7 @@ function render(){
 
   const counts = deckCounts();
   $('#deckCount').textContent = `(${game.deck.length}장)`;
+  $('#deckCountBtn').textContent = game.deck.length;
   $('#deck').innerHTML = counts.map(c =>
     `<div class="chip" data-id="${c.id}">${SYMBOLS[c.id].e}${c.bg ? `<u>${c.bg}</u>` : ''}<i>${c.k}</i></div>`).join('');
   $('#log').innerHTML = game.log.map(l => `<div>${l}</div>`).join('');
@@ -1330,6 +1368,16 @@ document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hi
 })();
 
 // ══════════════════════════════════ 입력
+/* 화물칸 서랍. 슬롯머신을 화면 정중앙에 두려고 상시 패널에서 뺐음 */
+const cargo = $('#cargo');
+const toggleCargo = on => {
+  const next = on === undefined ? !cargo.classList.contains('open') : on;
+  cargo.classList.toggle('open', next);
+  beep(next ? 520 : 380, .05, 'triangle', .04);
+};
+$('#cargoBtn').onclick   = () => toggleCargo();
+$('#cargoClose').onclick = () => toggleCargo(false);
+
 const lever = $('#lever');
 async function pullLever(){
   if (lever.classList.contains('off')) return;
@@ -1361,6 +1409,8 @@ $('#muteBtn').onclick  = ev => {
 };
 document.addEventListener('keydown', ev => {
   if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) pullLever(); }
+  if (ev.key === 'c' || ev.key === 'C') toggleCargo();
+  if (ev.key === 'Escape') toggleCargo(false);
 });
 
 newGame();
