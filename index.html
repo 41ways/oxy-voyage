@@ -207,7 +207,7 @@
 <div id="app">
   <header>
     <div class="titlebar">
-      <h1>우주탐험<small>slot roguelike v0.3</small></h1>
+      <h1>우주탐험<small>slot roguelike v0.4</small></h1>
       <div class="spacer"></div>
       <div class="mini"><span>점수</span><b id="sScore">0</b></div>
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
@@ -217,7 +217,7 @@
       <div class="tile o2"><span>보유 산소</span><b id="sCoins">0</b></div>
       <div class="tile"><span>구역</span><b id="sRound">1</b></div>
       <div class="tile cost"><span>구역 통과 시 소모</span><b id="sCost">100</b><em id="sDebt"></em></div>
-      <div class="tile"><span>남은 스핀</span><b id="sSpins">6</b><div class="dots" id="sDots"></div></div>
+      <div class="tile"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
     </div>
   </header>
 
@@ -255,6 +255,7 @@
      "돌려본 수치"와 "실제로 도는 게임"이 어긋날 수 없음
    변경내역
      v0.3  engine.js 분리, 시뮬레이션 기반 수치 반영, 배경 밝기 상향
+     v0.4  스핀 5회 고정, 수경재배 3단계(🌱→🌷→🌸), 원형별 통과율 기준 재조정
    이슈 사항 (일부러 안 넣은 것)
      ─ 아이템/유물: 심볼만으로 밸런스가 잡히는지 먼저 보고 나중에
      ─ 서버 랭킹: 기록은 localStorage에만
@@ -438,7 +439,7 @@ function offerSymbols(){
 
 // ══════════════════════════════════ 생명유지 정산
 async function settleLifeSupport(){
-  const cut = costCutOf(game.deck);
+  const cut = costCutOf(game.deck, game.cost);
   const due = Math.max(0, game.cost - cut);
   if (cut) pushLog(`🎫 보급 쿠폰으로 ${cut} O₂ 절감`);
 
