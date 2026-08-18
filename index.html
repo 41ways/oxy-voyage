@@ -77,20 +77,23 @@
     animation:shake .42s ease-in-out infinite;
   }
   body.draining .tile.o2 b{color:var(--bad); text-shadow:0 0 16px rgba(255,107,107,.55)}
-  body.draining .drain .dn.good b{color:var(--bad); text-shadow:0 0 16px rgba(255,107,107,.5)}
+  body.draining .life b{color:var(--bad); text-shadow:0 0 24px rgba(255,107,107,.45)}
   @keyframes shake{
     0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)}
     50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
   }
 
-  /* 정산 모달의 숫자 줄 */
-  .drain{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin:6px 0 2px}
-  .drain .dn{display:flex; flex-direction:column; gap:3px; min-width:96px}
-  .drain .dn span{font-size:11px; color:var(--dim)}
-  .drain .dn b{font-size:34px; font-variant-numeric:tabular-nums; letter-spacing:-1px}
-  .drain .dn.bad b{color:var(--bad)}
-  .drain .dn.good b{color:var(--good)}
-  .drain .dop{font-size:22px; color:var(--dim)}
+  /* 정산 화면 — 계산식 말고 라이프가 깎이는 그림 하나만 */
+  .life{margin:2px 0 6px; line-height:1}
+  .life b{
+    display:block; font-size:64px; letter-spacing:-2px; color:var(--o2);
+    font-variant-numeric:tabular-nums; text-shadow:0 0 24px rgba(95,211,255,.35);
+  }
+  .life .loss{
+    margin-top:8px; font-size:22px; font-weight:700; color:var(--bad);
+    font-variant-numeric:tabular-nums; animation:lossIn .5s .12s ease both;
+  }
+  @keyframes lossIn{ from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:none} }
 
   main{display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start}
   @media (max-width:900px){ main{grid-template-columns:1fr} }
@@ -122,6 +125,7 @@
     border:1px solid var(--line); border-radius:7px; padding:3px 6px; font-size:14px; cursor:default;
   }
   .chip i{font-style:normal; font-size:10px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .chip u{text-decoration:none; font-size:9px; font-weight:700; color:var(--legend)}
   .chip.pick{cursor:pointer}
   .chip.pick:hover{border-color:var(--bad); background:#3a2430}
   #log{font-size:11px; color:var(--dim); line-height:1.65; max-height:190px; overflow-y:auto; font-variant-numeric:tabular-nums}
@@ -188,7 +192,7 @@
     <div class="hud">
       <div class="tile o2" id="tileO2"><span>보유 산소</span><b id="sCoins">0</b></div>
       <div class="tile"><span>구역</span><b id="sRound">1</b></div>
-      <div class="tile cost"><span>구역 통과 시 소모</span><b id="sRent">70</b></div>
+      <div class="tile cost"><span>구역 통과 시 소모</span><b id="sRent">100</b></div>
       <div class="tile"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
     </div>
   </header>
@@ -245,15 +249,24 @@ const RARITY = {
   legend:   { label:'전설', weight:3,  color:'var(--legend)' },
 };
 
-/* 구역별 생명유지 소모량. 12구역 넘어가면 1.3배씩.
-   스핀당 필요량으로 보면 14 → 26 → 40 → 70 → 97 → 146 … 로 오름.
-   시작 덱(10장)이 스핀당 15~25쯤 뽑으니 1구역은 빠듯하게 넘어가는 정도 */
-const COSTS = [70, 130, 240, 420, 680, 1020, 1500, 2100, 2900, 3900, 5100, 6600];
+/* 구역별 생명유지 소모량.
+   설계는 "스핀당 얼마를 뽑아야 하나"에서 역산했음 —
+     구역 1  17/스핀   시작 덱(12장)이 대충 16쯤 뽑으니 픽을 잘해야 겨우 넘어감
+     구역 5  85/스핀   기본 시너지만으론 부족. 성장형이나 조합 하나는 완성돼야 함
+     구역 10 350/스핀  배수·파괴 계열 없이는 불가능
+     구역 15 1130/스핀 위험한 심볼을 안고 가야 나오는 숫자
+   여기에 구역별 스핀 수를 곱한 게 아래 표. 20구역 넘으면 1.26배씩.
+   구역이 오를수록 배수(1.7 → 1.25)가 완만해지는데, 이건 덱이 복리로 세지기 때문.
+   앞구간은 덱이 못 따라오니 급하게, 뒷구간은 덱이 터지니 천천히 조임 */
+const COSTS = [
+  100, 170, 300, 430, 680, 920, 1400, 1850, 2700, 3500,
+  4500, 5700, 7200, 9000, 11300, 14000, 17500, 22000, 27500, 34500,
+];
 const costFor  = r => r <= COSTS.length
   ? COSTS[r-1]
-  : Math.round(COSTS[COSTS.length-1] * Math.pow(1.3, r - COSTS.length));
+  : Math.round(COSTS[COSTS.length-1] * Math.pow(1.26, r - COSTS.length));
 // 스핀 수는 2구역마다 하나씩 늘려주되 10에서 멈춤
-const spinsFor = r => Math.min(5 + Math.floor((r-1)/2), 10);
+const spinsFor = r => Math.min(6 + Math.floor((r-1)/2), 10);
 
 // ══════════════════════════════════ 심볼 테이블
 /*
@@ -294,14 +307,14 @@ const SYMBOLS = {
 
   hydro:{ e:'🌱', n:'수경재배', base:1, r:'common', d:'💧 정제수와 인접하면 영구히 +1 (한 턴에 1까지, 최대치 없음)',
     baseOf(en){ return 1 + (en.mem.grow||0); },
-    badge(en){ return en.mem.grow ? '+' + en.mem.grow : null; },
+    badge(en){ return '+' + (en.mem.grow || 0); },
     // 물이 여러 개 붙어도 한 턴에 1만 자람 — 물 도배로 폭주하는 걸 막으려고 이렇게 함
     effect(c){ if(c.adj('water').length) c.self.entry.mem.grow = (c.self.entry.mem.grow||0) + 1; } },
 
-  duct:{ e:'🌬️', n:'환기구', base:1, r:'common', d:'좌우로 끊김 없이 이어진 심볼 1개당 +1 (빈칸에서 끊김)',
-    effect(c){ const chain=chainCells(c.self); chain.forEach(c.link); if(chain.length) c.addSelf(chain.length); } },
+  duct:{ e:'🌬️', n:'환기구', base:1, r:'common', d:'좌우로 이어붙은 🌬️ 환기구 1개당 +1',
+    effect(c){ const chain=ductChain(c.self); chain.forEach(c.link); if(chain.length) c.addSelf(chain.length); } },
 
-  solar:{ e:'☀️', n:'태양광 패널', base:1, r:'common', d:'인접한 심볼이 서로 전부 다르면 +5',
+  solar:{ e:'☀️', n:'태양광 패널', base:0, r:'common', d:'인접한 심볼이 서로 전부 다르면 +5',
     effect(c){ const a=c.adj(); if(!a.length) return;
       const ids=new Set(a.map(o=>o.entry.id));
       if(ids.size===a.length) c.addSelf(5); } },
@@ -318,17 +331,19 @@ const SYMBOLS = {
   alien:{ e:'👾', n:'외계생명', base:3, r:'uncommon', noOffer:true, d:'기본 3. 알에서 깨어난 뒤의 모습' },
 };
 
-/* 같은 행에서 자기 기준 좌우로 빈칸 없이 이어진 칸들 (자기 제외).
-   빈칸을 만나면 거기서 끊김 — 덕트가 이어진 만큼만 공기가 흐른다는 그림 */
-function chainCells(cell){
+/* 같은 행에서 자기 기준 좌우로 끊김 없이 이어붙은 환기구들 (자기 제외).
+   환기구가 아닌 게 하나라도 끼면 거기서 관이 끊김 */
+function ductChain(cell){
   const row = game.cells.filter(o => o.r === cell.r).sort((a,b) => a.c - b.c);
+  const isDuct = o => o && o.entry && o.entry.id === 'duct' && !o.dead;
   const out = [];
-  for (let i = cell.c - 1; i >= 0 && row[i].entry; i--) out.push(row[i]);
-  for (let i = cell.c + 1; i < COLS && row[i].entry; i++) out.push(row[i]);
+  for (let i = cell.c - 1; i >= 0    && isDuct(row[i]); i--) out.push(row[i]);
+  for (let i = cell.c + 1; i < COLS  && isDuct(row[i]); i++) out.push(row[i]);
   return out;
 }
 
-const START_DECK = ['o2','o2','o2','ration','ration','water','water','hydro','duct','solar'];
+// 12장. 20칸을 60%만 채워서 태양광·환기구가 자리를 볼 여지를 남김
+const START_DECK = ['o2','o2','o2','ration','ration','water','water','water','hydro','duct','solar','coil'];
 
 // ══════════════════════════════════ 유틸
 const $  = s => document.querySelector(s);
@@ -457,9 +472,18 @@ function resolve(){
     if (!def || !def.effect) continue;
 
     /* 이 칸이 어떤 칸을 쳐다봤는지 기록해둠. 나중에 점수를 순서대로 보여줄 때
-       "얘 때문에 이만큼" 이 눈에 보이게 같이 빛내주려고 */
-    const link = t => { if (t && t !== cell && !cell.links.includes(t)) cell.links.push(t); };
-    const seen = list => { list.forEach(link); return list; };
+       "얘 때문에 이만큼" 이 눈에 보이게 같이 빛내주려고.
+       단, 조회만 하고 아무 일도 안 일어난 경우(태양광 조건 미충족 같은 것)는
+       빼야 함 — 점수에 관여도 안 한 게 빛나면 왜 빛나는지 알 수가 없음.
+       그래서 조회 결과는 일단 대기줄에 두고, 값이 실제로 움직일 때만 확정 */
+    const pending = [];
+    const hold = t => { if (t && t !== cell && !pending.includes(t)) pending.push(t); };
+    const commit = () => {
+      for (const t of pending) if (!cell.links.includes(t)) cell.links.push(t);
+      pending.length = 0;
+    };
+    const bind = t => { hold(t); commit(); };
+    const seen = list => { list.forEach(hold); return list; };
 
     def.effect({
       self: cell,
@@ -468,14 +492,14 @@ function resolve(){
       row:  (...ids) => seen(filt(cells.filter(o=>o!==cell && o.r===cell.r), ids)),
       col:  (...ids) => seen(filt(cells.filter(o=>o!==cell && o.c===cell.c), ids)),
       emptyAdj: () => adjacent(cell).filter(o=>!o.entry).length,
-      link,                       // 직접 고른 칸을 연출용으로 묶고 싶을 때
-      addSelf: n => { cell.val += n; },
-      add:  (t,n) => { link(t); t.val += n; },
-      mul:  (t,m) => { link(t); t.val *= m; },
-      kill: t => { link(t); t.dead = true; t.val = 0; removeFromDeck(t.entry); },
+      link: hold,                 // 직접 고른 칸을 연출용으로 묶고 싶을 때
+      addSelf: n => { if (!n) return; cell.val += n; commit(); },
+      add:  (t,n) => { if (!n) return; bind(t); t.val += n; },
+      mul:  (t,m) => { if (m === 1) return; bind(t); t.val *= m; },
+      kill: t => { bind(t); t.dead = true; t.val = 0; removeFromDeck(t.entry); },
       // 아직 정의 안 된 심볼로는 변신 안 함 — 등급 추가하다 반쯤 만든 상태에서 터지는 것 방지
       morph:(t,id) => { if(!SYMBOLS[id]) return; t.entry.id = id; t.entry.mem = {}; t.val = baseOf(t.entry); },
-      gain: n => { extra.coins += n; },
+      gain: n => { if (!n) return; extra.coins += n; commit(); },
       deckAdd: id => { if(SYMBOLS[id]) game.deck.push(mkEntry(id)); },
       rand: Math.random,
       note: msg => extra.notes.push(msg),
@@ -647,13 +671,9 @@ function drainModal(due, ok){
     sub: ok
       ? `${game.round}구역을 지나며 생명유지장치가 산소를 가져간다`
       : `${due} O₂가 필요한데 ${before}밖에 없다`,
-    body: `<div class="drain">
-        <div class="dn"><span>보유</span><b>${before}</b></div>
-        <div class="dop">−</div>
-        <div class="dn bad"><span>소모</span><b>${due}</b></div>
-        <div class="dop">=</div>
-        <div class="dn ${ok ? 'good' : 'bad'}"><span>잔량</span>
-          <b id="${ok ? 'dTo' : 'dNo'}">${ok ? before : '부족'}</b></div>
+    body: `<div class="life">
+        <b id="${ok ? 'dTo' : 'dNo'}">${before}</b>
+        <div class="loss">−${due} O₂</div>
       </div>`,
     buttons: [{ label: ok ? '계속' : '항해 종료', value:1 }],
     onPick: () => null,
@@ -679,14 +699,18 @@ function maintenance(){
     title: '정비',
     sub: '화물칸에서 심볼 하나를 버릴 수 있다 (한 장만)',
     body: `<div class="deck" style="justify-content:center;max-height:none">${
-      counts.map(([id,k]) => `<div class="chip pick" data-id="${id}">${SYMBOLS[id].e}<i>${k}</i></div>`).join('')
+      counts.map(c => `<div class="chip pick" data-id="${c.id}" data-uid="${c.uid}">${SYMBOLS[c.id].e}${c.bg ? `<u>${c.bg}</u>` : ''}<i>${c.k}</i></div>`).join('')
     }</div>`,
     buttons: [{ label:'그냥 두기', value:null }],
-    onPick: el => el.closest('.chip') ? el.closest('.chip').dataset.id : null,
-  }).then(id => {
-    if (id){
-      const i = game.deck.findIndex(x => x.id === id);
-      if (i >= 0){ game.deck.splice(i,1); pushLog(`${SYMBOLS[id].e} ${SYMBOLS[id].n} 투기`); }
+    onPick: el => el.closest('.chip') ? +el.closest('.chip').dataset.uid : null,
+  }).then(uid => {
+    if (uid){
+      const i = game.deck.findIndex(x => x.uid === uid);
+      if (i >= 0){
+        const id = game.deck[i].id;
+        game.deck.splice(i,1);
+        pushLog(`${SYMBOLS[id].e} ${SYMBOLS[id].n} 투기`);
+      }
     }
     render();
   });
@@ -711,6 +735,9 @@ async function gameOver(){
 function modal({ title, sub, body, buttons, onPick, onOpen }){
   return new Promise(resolve => {
     const ov = $('#overlay');
+    // 직전 모달이 예약해둔 뒷정리 타이머 취소.
+    // 안 끄면 정산 → 정비처럼 연달아 열 때 새로 그린 내용까지 같이 지워버림
+    if (ov._clean){ clearTimeout(ov._clean); ov._clean = 0; }
     ov.innerHTML = `<div class="modal">
       <h3>${title}</h3><p class="sub">${sub}</p>${body}
       <div class="foot">${buttons.map((b,i)=>`<button data-b="${i}">${b.label}</button>`).join('')}</div>
@@ -726,7 +753,7 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
     function done(v){
       ov.classList.remove('show');
       ov.onclick = null;
-      setTimeout(() => { ov.classList.remove('on'); ov.innerHTML = ''; }, 200);
+      ov._clean = setTimeout(() => { ov.classList.remove('on'); ov.innerHTML = ''; ov._clean = 0; }, 200);
       resolve(v);
     }
   });
@@ -935,10 +962,19 @@ function rollReels(){
 }
 
 // ══════════════════════════════════ DOM 갱신
+/* 화물칸 목록. 같은 심볼이라도 자란 정도(수경재배)나 남은 턴(외계 알)이 다르면
+   따로 세워줘야 뭘 버릴지 고를 수 있음 — 그래서 id가 아니라 id+뱃지로 묶음 */
 function deckCounts(){
   const m = new Map();
-  for (const en of game.deck) m.set(en.id, (m.get(en.id)||0) + 1);
-  return [...m.entries()].sort((a,b) => b[1]-a[1]);
+  for (const en of game.deck){
+    const def = SYMBOLS[en.id];
+    const bg  = def && def.badge ? def.badge(en) : null;
+    const key = en.id + '|' + (bg || '');
+    const cur = m.get(key) || { id: en.id, bg, k: 0, uid: en.uid };
+    cur.k++;
+    m.set(key, cur);
+  }
+  return [...m.values()].sort((a, b) => b.k - a.k);
 }
 
 function pushLog(html){
@@ -969,8 +1005,8 @@ function render(){
 
   const counts = deckCounts();
   $('#deckCount').textContent = `(${game.deck.length}장)`;
-  $('#deck').innerHTML = counts.map(([id,k]) =>
-    `<div class="chip" data-id="${id}">${SYMBOLS[id].e}<i>${k}</i></div>`).join('');
+  $('#deck').innerHTML = counts.map(c =>
+    `<div class="chip" data-id="${c.id}">${SYMBOLS[c.id].e}${c.bg ? `<u>${c.bg}</u>` : ''}<i>${c.k}</i></div>`).join('');
   $('#log').innerHTML = game.log.map(l => `<div>${l}</div>`).join('');
   draw();
 }
