@@ -42,7 +42,20 @@ var ARCH = {
   증폭:   { pick:{ reactor:20, coolant:18, culture:12, turbine:10, ore:8 } },
   도박:   { pick:{ critical:20, wormhole:18, emergency:16, align:14, leak:9, parasite:8, hole:8, mold:7, o2:5, water:4, ration:4 }, keepNeg:true },
   긴축:   { pick:{ coupon:20, culture:10, o2:6, fuel:6, ration:4, water:4 }, keepNeg:true },
+  웜홀:   { pick:{ wormhole:20, lens:18, culture:16, purge:15, align:14, prism:6 } },
   잡식:   { pick:null },   // 대조군 — 기본값 큰 것만 무작정 집음
+
+  /* ── 사람처럼 두는 쪽. 위의 원형들은 자기 축만 기계처럼 고르지만
+     실제로는 후보를 잘못 읽고, 눈앞의 큰 숫자에 끌리고, 무리하다 일찍 죽는다.
+     noise = 그 확률로 선호도를 무시하고 아무거나 집음 */
+  '사람·안정': { pick:{ o2:9, ration:8, water:8, crew:9, fuel:9, ore:11, coil:8, duct:8,
+                        bot:8, part:6, oil:6, navcom:8, turbine:10, tank:9, aicore:12,
+                        nano:8, bloom:9, hydro:8, solar:7, culture:7, purge:6, cat:7, dog:8 },
+                noise:0.35 },
+  '사람·욕심': { pick:{ wormhole:16, critical:16, emergency:14, kraken:16, aicore:15,
+                        prism:14, align:14, mastercode:14, reactor:12, ore:11, diamond:11,
+                        scope:11, lens:12, mold:8, leak:8, o2:5, ration:4, water:4 },
+                noise:0.25 },
 };
 
 function greedyBase(id){
@@ -51,8 +64,10 @@ function greedyBase(id){
 }
 
 function makePicker(name){
-  var table = ARCH[name].pick;
-  return function(ch, deck){
+  var table = ARCH[name].pick, noise = ARCH[name].noise || 0;
+  return function(ch, deck, rnd){
+    if (noise && rnd() < noise)               // 사람은 매번 최선을 고르지 않는다
+      return Math.floor(rnd() * ch.length);
     var best = -1, bestV = 0;
     for (var i=0;i<ch.length;i++){
       var v = table ? (table[ch[i]] || 0) : greedyBase(ch[i]);
@@ -100,7 +115,7 @@ function playOne(name, rnd, capRound, tally){
       coins = Math.max(0, coins + E.resolve(state, rnd).total);
       if (s < spins - 1){
         var ch = E.rollChoices(4, rnd, round);
-        var p = pick(ch, state.deck);
+        var p = pick(ch, state.deck, rnd);
         if (p >= 0) state.deck.push(E.mkEntry(ch[p]));
       }
     }
@@ -167,13 +182,13 @@ for (var n=0; n<NAMES.length; n++){
 
 // ── 구역별 통과율 (핵심 지표)
 console.log('판수 ' + GAMES + ' · 구역별 통과율 (그 구역에 도달한 판 중 넘어간 %)\n');
-var head = '   원형     ';
+var head = '   원형       ';
 var COLS_R = [1,2,3,4,5,6,8,10,13,16,18,19,20,21,24];
 for (var r=0;r<COLS_R.length;r++) head += pad(COLS_R[r], 5);
 console.log(head);
 for (var n=0; n<NAMES.length; n++){
   var t = res[NAMES[n]].tally;
-  var line = '   ' + pad(NAMES[n], 7, true) + ' ';
+  var line = '   ' + pad(NAMES[n], 9, true) + ' ';
   for (var k=0;k<COLS_R.length;k++){
     var r = COLS_R[k], tr = t.tried[r] || 0, pa = t.passed[r] || 0;
     line += pad(tr ? Math.round(pa/tr*100) + '%' : '-', 5);
@@ -185,7 +200,7 @@ for (var n=0; n<NAMES.length; n++){
 console.log('\n   원형   도달구역(중앙/평균/상위5%)     점수(중앙/상위5%/최고)');
 for (var n=0; n<NAMES.length; n++){
   var d = res[NAMES[n]];
-  console.log('   ' + pad(NAMES[n],7,true) + ' ' +
+  console.log('   ' + pad(NAMES[n],9,true) + ' ' +
     pad(pct(d.rounds,.5),3) + ' / ' + pad(mean(d.rounds).toFixed(1),5) + ' / ' + pad(pct(d.rounds,.95),3) +
     '            ' +
     pad(pct(d.scores,.5),7) + ' / ' + pad(pct(d.scores,.95),8) + ' / ' + pad(d.scores[d.scores.length-1],9));
@@ -196,7 +211,7 @@ console.log('');
 for (var n=0; n<NAMES.length; n++){
   var dk = res[NAMES[n]].decks;
   var top = Object.keys(dk).sort(function(a,b){ return dk[b]-dk[a]; }).slice(0, 8);
-  console.log('   ' + pad(NAMES[n],7,true) + ' 덱  ' + top.map(function(id){
+  console.log('   ' + pad(NAMES[n],9,true) + ' 덱  ' + top.map(function(id){
     return E.SYMBOLS[id].e + E.SYMBOLS[id].n + ' ' + (dk[id]/GAMES).toFixed(1);
   }).join(' · '));
 }

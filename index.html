@@ -177,14 +177,6 @@
       0 0 20px rgba(120,80,220,.45),
       0 8px 22px rgba(0,0,0,.5);
   }
-  /* 릴을 가르는 네온 기둥 — 캔버스 위에 얹어 5열로 보이게 */
-  .window .reelbars{
-    position:absolute; inset:10px; border-radius:9px; pointer-events:none;
-    background:repeating-linear-gradient(90deg,
-      transparent 0 calc(20% - 2px),
-      rgba(140,220,255,.45) calc(20% - 2px) 20%);
-    mix-blend-mode:screen; opacity:.65;
-  }
   .window .glass{
     position:absolute; inset:10px; border-radius:9px; pointer-events:none;
     background:linear-gradient(118deg,
@@ -246,10 +238,17 @@
     font-size:8px; letter-spacing:1.6px; color:#8f7fd0; border:1px solid #4b3c8c;
     border-radius:4px; padding:3px 6px; white-space:nowrap;
   }
-  .payout .slotmouth{
-    flex:1; height:16px; border-radius:8px;
+  /* PAYOUT 자리를 순도 게이지로 씀 — 전역 규칙이라 늘 보여야 함 */
+  .payout .purbar{
+    flex:1; height:16px; border-radius:8px; overflow:hidden;
     background:linear-gradient(180deg,#05030f,#120c2c);
     box-shadow:inset 0 5px 10px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.08);
+  }
+  .payout .purbar i{
+    display:block; height:100%; width:0;
+    background:linear-gradient(90deg,#2fd0ea,#b06cff 55%,#ffbe3d);
+    box-shadow:0 0 12px rgba(176,108,255,.7);
+    transition:width .32s cubic-bezier(.2,.85,.3,1);
   }
   /* 스핀마다 동전 하나가 투입구로 떨어진다 */
   .payout .coin{
@@ -274,10 +273,11 @@
   .payout .coinin{transition:color .5s, border-color .5s, box-shadow .5s}
 
   .payout .paylabel{
-    font-size:10px; font-weight:800; letter-spacing:2.5px; color:#ffd7f2;
+    font-size:11px; font-weight:800; letter-spacing:1px; color:#ffd7f2;
     text-shadow:0 0 10px rgba(255,95,210,.85), 0 0 22px rgba(255,95,210,.5);
-    white-space:nowrap;
+    white-space:nowrap; font-variant-numeric:tabular-nums; min-width:104px; text-align:right;
   }
+  .payout .paylabel b{color:#fff2a8; text-shadow:0 0 12px rgba(255,200,60,.9)}
   @media (max-width:640px){
     .cabinet{border-radius:40px 40px 16px 16px}
     .console{justify-content:center}
@@ -547,7 +547,6 @@
       <div class="machine">
         <div class="window">
           <canvas id="reel" width="544" height="440"></canvas>
-          <span class="reelbars"></span>
           <span class="glass"></span>
         </div>
       </div>
@@ -570,8 +569,8 @@
       <div class="payout" id="payout">
         <i class="coin"></i>
         <span class="coinin">COIN IN</span>
-        <span class="slotmouth"></span>
-        <span class="paylabel">✦ PAYOUT ✦</span>
+        <span class="purbar"><i id="purFill"></i></span>
+        <span class="paylabel" id="purLabel">순도 —</span>
       </div>
     </div>
 
@@ -728,6 +727,7 @@ async function spin(){
   const res = resolve(game, Math.random);
   const { total, notes } = res;
   game.purity = res;
+  renderPurity();
 
   const lightsOff = () => { for (const c of game.cells) c.flash = 0; };
   /* 지금 계산 중인 칸만 세게, 그 칸이 실제로 값에 관여시킨 심볼들은 은은하게.
@@ -1054,6 +1054,19 @@ function draw(){
   cx.fillStyle = 'rgba(16,22,40,.6)';   // 반투명이라 뒤 별이 비침
   roundRect(PAD/2, PAD/2, cv._w-PAD, cv._h-PAD, 12); cx.fill();
 
+  /* 릴을 가르는 네온 기둥. CSS로 20%씩 나눠 그렸더니 캔버스 실제 칸 경계
+     (21.3 / 40.4 / 59.6 / 78.7%)와 어긋나서, 여기서 같은 좌표계로 그림 */
+  const barTop = PAD + GAP, barH = ROWS*CELL + (ROWS-1)*GAP;
+  for (let c = 1; c < COLS; c++){
+    const x = PAD + GAP + c*(CELL+GAP) - GAP/2;
+    const g = cx.createLinearGradient(x-3, 0, x+3, 0);
+    g.addColorStop(0,   'rgba(140,220,255,0)');
+    g.addColorStop(.5,  'rgba(150,225,255,.45)');
+    g.addColorStop(1,   'rgba(140,220,255,0)');
+    cx.fillStyle = g;
+    cx.fillRect(x-3, barTop, 6, barH);
+  }
+
   // 열 단위로 그림. 아직 도는 열은 스크롤 스트립, 멈춘 열은 실제 결과
   for (let c = 0; c < COLS; c++){
     const col = reel.active ? reel.cols[c] : null;
@@ -1265,8 +1278,19 @@ function renderStats(){
   if (dTo) dTo.textContent = Math.round(disp.coins);
 }
 
+/* 순도 — 판에서 가장 많이 깔린 한 종류의 비율. 스핀 총합에 배수로 붙는다.
+   전역 규칙이라 화면에 안 보이면 아예 없는 규칙이나 마찬가지 */
+function renderPurity(){
+  const p = game.purity, fill = $('#purFill'), lab = $('#purLabel');
+  if (!p || !p.filled){ fill.style.width = '0'; lab.textContent = '순도 —'; return; }
+  const ratio = p.purityTop / p.filled;
+  fill.style.width = Math.round(ratio * 100) + '%';
+  lab.innerHTML = `순도 ${p.purityTop}/${p.filled} <b>×${p.purity}</b>`;
+}
+
 function render(){
   renderStats();
+  renderPurity();
   $('#lever').classList.toggle('off', busy || game.over || game.spinsLeft <= 0);
 
   const counts = deckCounts();
