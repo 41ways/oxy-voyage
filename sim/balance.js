@@ -25,67 +25,63 @@ function mulberry32(seed){
   };
 }
 
-// ══════════════════════════════════ 원형별 선호도
-/* 값이 클수록 먼저 집음. 0이면 안 집음 (후보 셋 다 0이면 건너뛰기) */
-var PREF = {
-  도박: {
-    critical:15, wormhole:14, align:13, reactor:12, emergency:12, incin:11,
-    leak:9, mold:9, coupon:3, hole:8, parasite:7, mastercode:6, ore:3, o2:1,
-  },
-  성장: {
-    hydro:14, larva:12, cargo:11, solar:9, water:8, tool:7,
-    coil:6, duct:6, tank:5, o2:3, ration:3,
-  },
-  안정: {
-    aicore:14, ore:12, turbine:11, tank:9, fuel:8, crew:6, navcom:6, nano:6,
-    bot:5, ration:4, water:4, coil:4, duct:4, o2:3, oil:3, part:3, solar:2,
-  },
-  // 조합은 고정표가 아니라 "덱에 짝이 이미 있나"로 점수를 냄 (아래 PARTNERS)
-  조합: null,
+// ══════════════════════════════════ 원형 12종
+/* 각 원형은 "이 심볼들만 집는다"로 정의. 값이 클수록 먼저 집고, 0이면 안 집음.
+   purge에 적은 종류는 정비 때 통째로 버림 (덱을 자기 축으로 정제하는 동작) */
+var ARCH = {
+  순수:   { pick:{ o2:20, culture:19, purge:18, lens:14, align:16, antenna:6, tank:8 } },
+  자기장: { pick:{ coil:20, culture:19, purge:18, lens:14, align:16, antenna:6 } },
+  배관:   { pick:{ duct:20, culture:19, purge:18, lens:14, align:16, turbine:8 } },
+  통신:   { pick:{ antenna:20, culture:19, purge:18, lens:14, align:16, navcom:8 } },
+  군체:   { pick:{ larva:20, culture:17, purge:16, lens:12, align:14 } },
+  온실:   { pick:{ hydro:18, water:15, solar:14, culture:12, crew:6 } },
+  오염:   { pick:{ incin:20, kit:18, mold:16, culture:12, reactor:8 }, keepNeg:true },
+  정비반: { pick:{ bot:20, part:15, oil:15, culture:12, fuel:6 } },
+  밀수:   { pick:{ tool:20, cargo:18, mastercode:20, culture:12 } },
+  광맥:   { pick:{ ore:20, drill:18, hole:12, nano:10, culture:12, fuel:6 } },
+  증폭:   { pick:{ reactor:20, coolant:18, culture:12, turbine:10, ore:8 } },
+  도박:   { pick:{ critical:20, wormhole:18, emergency:16, align:14, leak:9, parasite:8, hole:8, mold:7, o2:5, water:4, ration:4 }, keepNeg:true },
+  긴축:   { pick:{ coupon:20, culture:10, o2:6, fuel:6, ration:4, water:4 }, keepNeg:true },
+  잡식:   { pick:null },   // 대조군 — 기본값 큰 것만 무작정 집음
 };
 
-var PARTNERS = {
-  ration:['water','crew'], water:['ration','crew','hydro'], crew:['ration','water'],
-  part:['bot'], oil:['bot'], bot:['part','oil'],
-  cargo:['tool','mastercode'], tool:['cargo'], mastercode:['cargo'],
-  mold:['kit','incin'], kit:['mold'], incin:['mold'],
-  coil:['coil'], duct:['duct'], larva:['larva'],
-  hydro:['water','solar'], solar:['hydro'], o2:['tank'], tank:['o2'],
-  reactor:['ore','fuel'], hole:['fuel','ore','leak'], nano:['ore','fuel'],
-};
-
-function comboScore(id, deck){
-  var ps = PARTNERS[id];
-  if (!ps) return 0.5;                       // 짝이 없는 심볼은 최소한만
-  var n = 0;
-  for (var i=0;i<deck.length;i++)
-    if (ps.indexOf(deck[i].id) >= 0) n++;
-  return 1 + 2*n;
+function greedyBase(id){
+  var d = E.SYMBOLS[id];
+  return Math.max(0, d.base) + (d.effect ? 3 : 0);
 }
 
 function makePicker(name){
-  var table = PREF[name];
+  var table = ARCH[name].pick;
   return function(ch, deck){
     var best = -1, bestV = 0;
     for (var i=0;i<ch.length;i++){
-      var v = table ? (table[ch[i]] || 0) : comboScore(ch[i], deck);
+      var v = table ? (table[ch[i]] || 0) : greedyBase(ch[i]);
       if (v > bestV){ bestV = v; best = i; }
     }
     return best;                              // -1이면 건너뛰기
   };
 }
 
-/* 정비: 안정·성장·조합은 자기 축에 없는 마이너스 심볼을 버림. 도박은 안 버림 */
+/* 정비는 구역당 한 장. 자기 축에 없는 종류 중 가장 많은 것에서 한 장을 뺌.
+   덱을 한 종류로 모으는 건 🗑️ 폐기 슈트 쪽 일이고, 정비는 응급 처치에 가까움 */
 function makeTrimmer(name){
-  if (name === '도박') return function(){ return null; };
+  var table = ARCH[name].pick, keepNeg = ARCH[name].keepNeg;
   return function(deck){
-    for (var i=0;i<deck.length;i++)
-      if (E.SYMBOLS[deck[i].id].base < 0) return deck[i].uid;
-    return null;
+    if (deck.length <= 14) return null;      // 판(20칸)을 못 채울 만큼 줄이면 손해
+    var cnt = {};
+    for (var i=0;i<deck.length;i++) cnt[deck[i].id] = (cnt[deck[i].id]||0) + 1;
+    var worst = null, worstN = 0;
+    for (var id in cnt){
+      var mine = table ? (table[id] || 0) : 1;
+      if (mine > 0) continue;                                  // 내 축이면 안 버림
+      if (keepNeg && E.SYMBOLS[id].base < 0) continue;         // 도박·오염은 마이너스를 안고 감
+      if (cnt[id] > worstN){ worstN = cnt[id]; worst = id; }
+    }
+    return worst;
   };
 }
 
-var NAMES = ['도박','조합','성장','안정'];
+var NAMES = Object.keys(ARCH);
 
 // ══════════════════════════════════ 한 판
 function playOne(name, rnd, capRound, tally){
@@ -116,11 +112,11 @@ function playOne(name, rnd, capRound, tally){
 
     coins -= due; paid += due;
 
-    var uid = trim(state.deck);
-    if (uid != null){
+    var junk = trim(state.deck);
+    if (junk != null){
+      var sticky = E.SYMBOLS[junk].sticky || 0;
       for (var i=0;i<state.deck.length;i++){
-        if (state.deck[i].uid !== uid) continue;
-        var sticky = E.SYMBOLS[state.deck[i].id].sticky || 0;
+        if (state.deck[i].id !== junk) continue;
         if (rnd() >= sticky) state.deck.splice(i,1);   // 눌어붙는 심볼은 확률로 남음
         break;
       }
@@ -149,7 +145,7 @@ function pad(s, n, right){
 
 // ══════════════════════════════════ 실행
 var GAMES = parseInt(process.argv[2], 10) || 400;
-var CAP   = 30;
+var CAP   = 60;
 
 var res = {};
 for (var n=0; n<NAMES.length; n++){
@@ -171,15 +167,16 @@ for (var n=0; n<NAMES.length; n++){
 
 // ── 구역별 통과율 (핵심 지표)
 console.log('판수 ' + GAMES + ' · 구역별 통과율 (그 구역에 도달한 판 중 넘어간 %)\n');
-var head = '   구역  ';
-for (var r=1;r<=10;r++) head += pad(r+'구역', 7);
+var head = '   원형     ';
+var COLS_R = [1,2,3,4,5,6,8,10,13,16,18,19,20,21,24];
+for (var r=0;r<COLS_R.length;r++) head += pad(COLS_R[r], 5);
 console.log(head);
 for (var n=0; n<NAMES.length; n++){
   var t = res[NAMES[n]].tally;
-  var line = '   ' + pad(NAMES[n], 4, true) + '  ';
-  for (var r=1;r<=10;r++){
-    var tr = t.tried[r] || 0, pa = t.passed[r] || 0;
-    line += pad(tr ? Math.round(pa/tr*100) + '%' : '-', 7);
+  var line = '   ' + pad(NAMES[n], 7, true) + ' ';
+  for (var k=0;k<COLS_R.length;k++){
+    var r = COLS_R[k], tr = t.tried[r] || 0, pa = t.passed[r] || 0;
+    line += pad(tr ? Math.round(pa/tr*100) + '%' : '-', 5);
   }
   console.log(line);
 }
@@ -188,7 +185,7 @@ for (var n=0; n<NAMES.length; n++){
 console.log('\n   원형   도달구역(중앙/평균/상위5%)     점수(중앙/상위5%/최고)');
 for (var n=0; n<NAMES.length; n++){
   var d = res[NAMES[n]];
-  console.log('   ' + pad(NAMES[n],4,true) + '   ' +
+  console.log('   ' + pad(NAMES[n],7,true) + ' ' +
     pad(pct(d.rounds,.5),3) + ' / ' + pad(mean(d.rounds).toFixed(1),5) + ' / ' + pad(pct(d.rounds,.95),3) +
     '            ' +
     pad(pct(d.scores,.5),7) + ' / ' + pad(pct(d.scores,.95),8) + ' / ' + pad(d.scores[d.scores.length-1],9));
@@ -199,7 +196,7 @@ console.log('');
 for (var n=0; n<NAMES.length; n++){
   var dk = res[NAMES[n]].decks;
   var top = Object.keys(dk).sort(function(a,b){ return dk[b]-dk[a]; }).slice(0, 8);
-  console.log('   ' + pad(NAMES[n],4,true) + ' 덱  ' + top.map(function(id){
+  console.log('   ' + pad(NAMES[n],7,true) + ' 덱  ' + top.map(function(id){
     return E.SYMBOLS[id].e + E.SYMBOLS[id].n + ' ' + (dk[id]/GAMES).toFixed(1);
   }).join(' · '));
 }

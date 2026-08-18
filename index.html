@@ -115,9 +115,42 @@
     padding:14px; display:flex; flex-direction:column; align-items:center; gap:12px;
     backdrop-filter:blur(10px);
   }
-  canvas{width:100%; max-width:544px; height:auto; display:block; touch-action:manipulation}
+  .machine{display:flex; gap:14px; align-items:stretch; width:100%; max-width:620px}
+  canvas{flex:1; min-width:0; height:auto; display:block; touch-action:manipulation}
 
-  .actions{display:flex; gap:10px; width:100%; max-width:544px}
+  /* 레버 — 버튼보다 이쪽이 슬롯머신답다 */
+  .lever{
+    width:58px; position:relative; cursor:pointer; user-select:none; flex:none;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .lever .slot{
+    position:absolute; left:50%; margin-left:-7px; top:10px; bottom:34px; width:14px;
+    background:linear-gradient(#141a2a,#20283c); border:1px solid #3b455e; border-radius:7px;
+    box-shadow:inset 0 3px 8px rgba(0,0,0,.6);
+  }
+  .lever .arm{
+    position:absolute; left:50%; margin-left:-16px; top:2px; width:32px; height:112px;
+    transition:transform .16s cubic-bezier(.3,.9,.4,1);
+  }
+  .lever .stick{
+    position:absolute; left:50%; margin-left:-4px; top:26px; bottom:0; width:8px;
+    background:linear-gradient(90deg,#7e8aa3,#dfe7f5 40%,#7e8aa3); border-radius:4px;
+  }
+  .lever .knob{
+    position:absolute; left:0; top:0; width:32px; height:32px; border-radius:50%;
+    background:radial-gradient(circle at 34% 28%, #ff9d9d, #e04b4b 55%, #8d1f1f);
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 -3px 6px rgba(0,0,0,.35);
+  }
+  .lever .hint{
+    position:absolute; bottom:6px; left:0; right:0; text-align:center;
+    font-size:9px; letter-spacing:1px; color:var(--dim);
+  }
+  .lever:hover:not(.off) .arm{transform:translateY(10px)}
+  .lever.pulled .arm{transform:translateY(74px)}
+  .lever.off{opacity:.35; pointer-events:none}
+  @media (max-width:640px){ .machine{flex-direction:column} .lever{width:100%; height:64px} }
+
+  .actions{display:flex; gap:10px; width:100%; max-width:620px}
   button{
     font:inherit; font-weight:600; color:var(--fg); cursor:pointer;
     background:var(--panel2); border:1px solid var(--line); border-radius:10px;
@@ -125,8 +158,7 @@
   }
   button:hover:not(:disabled){background:#39435c; border-color:#4e5a78}
   button:disabled{opacity:.4; cursor:default}
-  #spinBtn{flex:1; background:linear-gradient(180deg,#3a9ae0,#2372bd); border-color:#2372bd; font-size:16px}
-  #spinBtn:hover:not(:disabled){background:linear-gradient(180deg,#48a9ee,#2a80d0)}
+  #speedBtn{min-width:56px}
 
   aside{display:flex; flex-direction:column; gap:14px}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; backdrop-filter:blur(10px)}
@@ -168,8 +200,13 @@
     padding:16px 12px; cursor:pointer; text-align:center;
     opacity:0; animation:riseIn .44s cubic-bezier(.2,.85,.3,1) forwards;
   }
-  /* riseIn이 transform을 잡고 있어서 hover는 배경·그림자로만 표현 */
-  .pickcard:hover{background:#39435c; box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  /* riseIn이 끝나면 .ready가 붙어 애니메이션을 놓아준다. 그래야 hover가 transform을 쥘 수 있음 */
+  .pickcard.ready{animation:none; opacity:1; transition:transform .16s cubic-bezier(.2,.9,.3,1), box-shadow .16s, background .16s}
+  .pickcard.ready:hover{
+    transform:translateY(-10px) scale(1.04) rotate(-1deg);
+    background:#39435c; box-shadow:0 16px 34px rgba(0,0,0,.55);
+  }
+  .pickcard.ready:active{transform:translateY(-4px) scale(1.01)}
   @keyframes riseIn{ from{opacity:0; transform:translateY(26px)} to{opacity:1; transform:none} }
   .pickcard .emo{font-size:40px; line-height:1.2}
   .pickcard .nm{font-weight:700; margin-top:4px}
@@ -207,7 +244,7 @@
 <div id="app">
   <header>
     <div class="titlebar">
-      <h1>우주탐험<small>slot roguelike v0.4</small></h1>
+      <h1>우주탐험<small>slot roguelike v0.5</small></h1>
       <div class="spacer"></div>
       <div class="mini"><span>점수</span><b id="sScore">0</b></div>
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
@@ -223,9 +260,16 @@
 
   <main>
     <div class="board">
-      <canvas id="reel" width="544" height="440"></canvas>
+      <div class="machine">
+        <canvas id="reel" width="544" height="440"></canvas>
+        <div class="lever" id="lever" title="레버를 당긴다 (Space)">
+          <span class="slot"></span>
+          <span class="arm"><i class="stick"></i><i class="knob"></i></span>
+          <span class="hint">PULL</span>
+        </div>
+      </div>
       <div class="actions">
-        <button id="spinBtn">돌리기 (Space)</button>
+        <button id="speedBtn" title="연출 배속">1×</button>
         <button id="resetBtn">새 항해</button>
       </div>
     </div>
@@ -256,6 +300,7 @@
    변경내역
      v0.3  engine.js 분리, 시뮬레이션 기반 수치 반영, 배경 밝기 상향
      v0.4  스핀 5회 고정, 수경재배 3단계(🌱→🌷→🌸), 원형별 통과율 기준 재조정
+     v0.5  순도 규칙 도입, 심볼 43종, 레버·카드 호버·배속(1~3×) 추가
    이슈 사항 (일부러 안 넣은 것)
      ─ 아이템/유물: 심볼만으로 밸런스가 잡히는지 먼저 보고 나중에
      ─ 서버 랭킹: 기록은 localStorage에만
@@ -265,7 +310,9 @@
 const CELL = 96, GAP = 8, PAD = 8;
 
 const $ = s => document.querySelector(s);
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* 연출 배속. 대기시간을 전부 여기로 통과시켜서 버튼 하나로 조절됨 */
+let speed = Number(localStorage.getItem('oxy.speed') || 1);
+const sleep = ms => new Promise(r => setTimeout(r, ms / speed));
 
 // ══════════════════════════════════ 상태
 let game = null;
@@ -336,6 +383,7 @@ function newGame(){
     deck: START_DECK.map(mkEntry),
     cells: makeCells(),
     debt: { mul:1, add:0 },      // 다음 구역 소모량에 남은 빚
+    purity: null,                // 직전 스핀의 순도 (화면 표시용)
     over: false,
     log: [],
   };
@@ -358,7 +406,9 @@ async function spin(){
   await sleep(140);
 
   const coinsBefore = game.coins;
-  const { total, notes } = resolve(game, Math.random);
+  const res = resolve(game, Math.random);
+  const { total, notes } = res;
+  game.purity = res;
 
   const lightsOff = () => { for (const c of game.cells) c.flash = 0; };
   /* 지금 계산 중인 칸만 세게, 그 칸이 실제로 값에 관여시킨 심볼들은 은은하게.
@@ -377,10 +427,10 @@ async function spin(){
     if (cell.dead){
       spotlight(cell); draw();
       beep(140, .16, 'triangle', .06);
-      await sleep(190);
+      await sleep(120);
       continue;
     }
-    if (cell.val === 0){ lightsOff(); draw(); await sleep(22); continue; }
+    if (cell.val === 0){ lightsOff(); draw(); await sleep(14); continue; }
 
     spotlight(cell); draw();
     acc += cell.val;
@@ -389,7 +439,7 @@ async function spin(){
     // 칸을 하나씩 먹을수록 음이 올라감 — 연달아 터질 때 쾌감이 붙음
     beep(430 * Math.pow(1.05, Math.min(idx, 26)), .07, 'sine', .045);
     idx++;
-    await sleep(165);
+    await sleep(105);
   }
 
   lightsOff();
@@ -399,7 +449,8 @@ async function spin(){
   game.spinsLeft--;
 
   const sign = total >= 0 ? 'plus' : 'minus';
-  pushLog(`${game.round}구역 · <span class="${sign}">${total>=0?'+':''}${total} O₂</span>`);
+  const purTxt = res.purity > 1 ? ` <span class="hl">순도 ×${res.purity}</span>` : '';
+  pushLog(`${game.round}구역 · <span class="${sign}">${total>=0?'+':''}${total} O₂</span>${purTxt}`);
   notes.forEach(pushLog);
   render();
   await sleep(260);
@@ -418,7 +469,7 @@ function offerSymbols(){
     sub: '고른 심볼이 화물칸에 들어간다. 마음에 안 들면 넘겨도 됨',
     body: `<div class="picks">${picks.map((id,i)=>{
       const s = SYMBOLS[id], rar = RARITY[s.r];
-      return `<div class="pickcard" data-i="${i}" style="border-color:${rar.color};animation-delay:${90+i*90}ms">
+      return `<div class="pickcard" data-i="${i}" style="border-color:${rar.color};animation-delay:${Math.round((70+i*70)/speed)}ms;animation-duration:${Math.round(440/speed)}ms">
         <div class="emo">${s.e}</div>
         <div class="nm">${s.n}</div>
         <div class="rar" style="color:${rar.color}">${rar.label}</div>
@@ -491,13 +542,13 @@ function drainModal(due, ok){
       setTimeout(() => {
         document.body.classList.add('draining');
         game.coins = before - due;
-        const ms = Math.min(1600, 550 + due * 3.5);   // 많이 깎일수록 조금 더 오래
+        const ms = Math.min(1600, 550 + due * 3.5) / speed;   // 많이 깎일수록 조금 더 오래
         drainNumber(before, game.coins, ms).then(() => {
           document.body.classList.remove('draining');
           beep(300, .18, 'triangle', .06);
           render();
         });
-      }, 1100);
+      }, 1100 / speed);
     },
   });
 }
@@ -559,6 +610,9 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
     </div>`;
     ov.classList.add('on');
     requestAnimationFrame(() => { ov.classList.add('show'); if (onOpen) onOpen(); });
+    // 떠오르는 연출이 끝나면 애니메이션을 놓아줘서 hover가 살아나게
+    ov.querySelectorAll('.pickcard').forEach(el =>
+      el.addEventListener('animationend', () => el.classList.add('ready'), { once:true }));
     ov.onclick = ev => {
       const btn = ev.target.closest('button[data-b]');
       if (btn){ done(buttons[+btn.dataset.b].value); return; }
@@ -720,8 +774,8 @@ function rollReels(){
   for (let c = 0; c < COLS; c++){
     reel.cols.push({
       idx: c, offset: 0,
-      speed: 2000 + Math.random()*300,
-      stopAt: 400 + c*130,
+      speed: (2000 + Math.random()*300) * speed,
+      stopAt: (400 + c*130) / speed,
       stopped: false, settle: 0, bounce: 0,
       strip: Array.from({length: ROWS+2}, pick),
     });
@@ -751,9 +805,9 @@ function rollReels(){
             }
           }
         }
-        if (col.stopped && col.settle < SETTLE){
+        if (col.stopped && col.settle < SETTLE/speed){
           col.settle += dt;
-          col.bounce = Math.sin(Math.min(col.settle/SETTLE, 1) * Math.PI) * 9;
+          col.bounce = Math.sin(Math.min(col.settle/(SETTLE/speed), 1) * Math.PI) * 9;
           running = true;
         } else if (!col.stopped){
           running = true;
@@ -814,7 +868,7 @@ function renderStats(){
 
 function render(){
   renderStats();
-  $('#spinBtn').disabled = busy || game.over || game.spinsLeft <= 0;
+  $('#lever').classList.toggle('off', busy || game.over || game.spinsLeft <= 0);
 
   const counts = deckCounts();
   $('#deckCount').textContent = `(${game.deck.length}장)`;
@@ -913,15 +967,30 @@ document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hi
 })();
 
 // ══════════════════════════════════ 입력
-$('#spinBtn').onclick  = spin;
+const lever = $('#lever');
+async function pullLever(){
+  if (lever.classList.contains('off')) return;
+  lever.classList.add('pulled');
+  setTimeout(() => lever.classList.remove('pulled'), 260 / speed);
+  await spin();
+}
+lever.onclick = pullLever;
+
 $('#resetBtn').onclick = () => { if (!busy) newGame(); };
+const SPEEDS = [1, 1.5, 2, 3];
+$('#speedBtn').textContent = speed + '×';
+$('#speedBtn').onclick = ev => {
+  speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+  localStorage.setItem('oxy.speed', String(speed));
+  ev.currentTarget.textContent = speed + '×';
+};
 $('#muteBtn').onclick  = ev => {
   muted = !muted;
   ev.currentTarget.textContent = muted ? '🔇' : '🔊';
   if (!muted) beep(660, .06, 'sine', .04);
 };
 document.addEventListener('keydown', ev => {
-  if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) spin(); }
+  if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) pullLever(); }
 });
 
 newGame();

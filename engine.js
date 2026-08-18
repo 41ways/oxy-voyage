@@ -18,8 +18,20 @@ var COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
 var LARVA_HATCH = 3;      // 외계 알이 부화하기까지 등장해야 하는 횟수
 var HYDRO_BUD = 4;        // 수경재배가 꽃봉오리로 맺히는 지점 (여기까진 물로)
 var HYDRO_MAX = 8;        // 꽃봉오리가 꽃으로 피는 지점 (여기부턴 태양광으로)
-var COST_CUT_MAX = 0.40;  // 소모량 할인의 합계 천장
-var SPIN_MUL_CAP = 3;     // 스핀 총합 배수 천장 (임계 반응이 겹쳐서 지수로 터지는 걸 막음)
+var COST_CUT_MAX = 0.30;  // 소모량 할인의 합계 천장
+var SPIN_MUL_CAP = 3;
+/* 순도 배수 — 판 20칸 중 "가장 많이 깔린 한 종류"의 개수로 스핀 총합에 배수.
+   덱을 한 종류로 모을수록 커진다. 이게 이 게임의 최고 고점이고,
+   동시에 곁가지 픽 하나하나에 눈에 보이는 대가를 붙이는 장치임.
+   배수는 하나뿐이라 겹쳐서 지수로 터지지 않음 */
+var PURITY = [[1.00,3.0],[0.95,2.3],[0.85,1.7],[0.75,1.4],[0.60,1.15]];
+var PURITY_MIN = 8;   // 판에 이만큼은 깔려 있어야 순도를 쳐줌 (3장짜리 덱으로 100% 먹는 걸 막음)
+function purityMul(top, filled){
+  if (filled < PURITY_MIN) return 1;
+  var ratio = top / filled;
+  for (var i=0;i<PURITY.length;i++) if (ratio >= PURITY[i][0]) return PURITY[i][1];
+  return 1;
+}     // 스핀 총합 배수 천장 (임계 반응이 겹쳐서 지수로 터지는 걸 막음)
 
 var RARITY = {
   common:   { label:'흔함', weight:60, color:'var(--common)' },
@@ -29,23 +41,24 @@ var RARITY = {
 };
 
 /* 구역별 생명유지 소모량.
-   설계는 "스핀당 얼마를 뽑아야 하나"에서 역산했음 —
-     구역 1  17/스핀   시작 덱(12장)이 대충 16쯤 뽑으니 픽을 잘해야 겨우 넘어감
-     구역 5  85/스핀   기본 시너지만으론 부족. 조합 하나는 완성돼야 함
-     구역 10 350/스핀  배수·파괴 계열 없이는 불가능
-     구역 15 1130/스핀 위험한 심볼을 안고 가야 나오는 숫자
-   앞구간은 배수를 크게(1.7), 중반은 완만하게(1.25) — 덱이 복리로 세지는데
-   초반엔 그 복리가 아직 안 걸려서.
-   표 끝(20구역) 이후는 1.32배씩. 여기까지 온 덱은 배수 계열이 겹쳐 있어서
-   완만하게 두면 영영 안 끝남 — 실제로 1.26배로 뒀더니 41구역 상한까지 갔음 */
+   한 판이 쉬지 않고 돌렸을 때 10분 안쪽(대략 20구역)에 끝나도록 잡았음 —
+   연출까지 재보면 한 구역이 30초쯤 걸린다.
+   1~5구역은 덱을 세울 시간을 주되 조금씩 조이고,
+   6~17구역은 1.13배로 완만하게 — 여기가 완만해야 덱의 복리가 따라붙는다.
+   18구역부터는 1.22배. 한때 1.45배로 벽을 세워봤는데, 그건 절벽이라
+   고점을 노린 덱까지 거기서 잘려나갔다. 그래서 소모량이 아니라
+   "수입이 자라는 속도"를 낮추는 쪽으로 갔음 — 배수·누적·덱 스케일 계열을
+   전부 한 단계씩 눌러서, 판이 꽉 찬 덱은 18~20구역에서 자연스럽게 후달리고
+   화물칸을 계속 불리는 통일 덱만 21구역 위로 간다 */
 var COSTS = [
-  100, 170, 300, 430, 620, 850, 1150, 1550, 2100, 2800,
-  3700, 4900, 6400, 8300, 10700, 13800, 17700, 22700, 29000, 37000,
+  90, 130, 175, 225, 275, 310, 350, 395, 450, 505,
+  575, 645, 730, 825, 935, 1055, 1190, 1450, 1770, 2160,
+  2640, 3220, 3930, 4800, 5850, 7140, 8710, 10620, 12960, 15810,
 ];
 function costFor(r){
   return r <= COSTS.length
     ? COSTS[r-1]
-    : Math.round(COSTS[COSTS.length-1] * Math.pow(1.32, r - COSTS.length));
+    : Math.round(COSTS[COSTS.length-1] * Math.pow(1.22, r - COSTS.length));
 }
 // 스핀 수는 어느 구역이든 5회로 고정.
 // 구역마다 스핀이 늘면 픽 기회까지 같이 늘어나 덱이 두 겹으로 세짐
@@ -69,6 +82,8 @@ function spinsFor(r){ return 5; }
     c.morph(cell,id,keep)  다른 심볼로 변신 (keep이면 자란 정도 등 mem 유지)
     c.gain(n)         칸과 무관하게 산소 직접 획득
     c.spinMul(m)      이번 스핀 총합에 배수 (전체 천장 3배)
+    c.purityBoost(n)  순도 판정에서 n개 더 깔린 것으로 쳐줌
+    c.topCount()      판에서 가장 많이 깔린 종류의 개수
     c.debt({mul,add}) 다음 구역 소모량에 빚을 남김
     c.deckAdd(id)     화물칸에 심볼 추가
     c.rand()          0~1 난수
@@ -84,7 +99,13 @@ function spinsFor(r){ return 5; }
 */
 var SYMBOLS = {
   // ═══════════ 흔함 — 기본 시너지
-  o2:{ e:'🫧', n:'산소방울', base:1, r:'common', d:'그냥 1. 하지만 뭉치면 산소통이 된다' },
+  o2:{ e:'🫧', n:'산소방울', base:1, r:'common', d:'화물칸에 실린 🫧 산소방울 6장당 +1. 판이 꽉 차도 계속 자라는 유일한 축',
+    /* 판이 아니라 화물칸 장수를 봄. 판 기준이면 20칸이 다 차는 순간 수입이 멈춰서
+       소모량 곡선을 영영 못 넘는다. 🧫 배양조로 덱을 계속 불리는 통일 덱만
+       21구역 위로 갈 수 있게 하려고 여기만 이렇게 뚫어둠 */
+    effect:function(c){ var k=0;
+      for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='o2') k++;
+      if(k>=6) c.addSelf(Math.floor(k/6)); } },
 
   ration:{ e:'🥫', n:'식량', base:1, r:'common', d:'인접한 💧 정제수 1개당 +2',
     effect:function(c){ var k=c.adj('water').length; if(k) c.addSelf(2*k); } },
@@ -92,14 +113,14 @@ var SYMBOLS = {
   water:{ e:'💧', n:'정제수', base:1, r:'common', d:'인접한 🥫 식량 · 🧑‍🚀 승무원 1개당 +1',
     effect:function(c){ var k=c.adj('ration','crew').length; if(k) c.addSelf(k); } },
 
-  part:{ e:'🔩', n:'볼트', base:2, r:'common', d:'인접한 🤖 정비로봇이 써버림 (자신 파괴, 로봇 +6)',
-    effect:function(c){ var bot=c.adj('bot')[0]; if(bot){ c.add(bot,6); c.kill(c.self); } } },
+  part:{ e:'🔩', n:'볼트', base:2, r:'common', d:'인접한 🤖 정비로봇이 써버림 (자신 파괴, 로봇 +12)',
+    effect:function(c){ var bot=c.adj('bot')[0]; if(bot){ c.add(bot,12); c.kill(c.self); } } },
 
   oil:{ e:'🛢️', n:'윤활유', base:1, r:'common', d:'인접한 🤖 정비로봇 1개당 +2',
     effect:function(c){ var k=c.adj('bot').length; if(k) c.addSelf(2*k); } },
 
   hydro:{ e:'🌱', n:'수경재배', base:1, r:'common',
-    d:'💧 정제수와 인접하면 영구히 +1 (한 턴에 1까지, 최대 +4). 다 자라면 🌷 꽃봉오리가 된다',
+    d:'💧 정제수와 인접해야만 자란다 (한 턴에 +1, 최대 +4). 다 자라면 🌷 꽃봉오리가 맺힌다',
     baseOf:function(en){ return 1 + (en.mem.grow||0); },
     badge:function(en){ return '+' + (en.mem.grow || 0); },
     // 물이 여러 개 붙어도 한 턴에 1만 자람 — 물 도배로 폭주하는 걸 막으려고
@@ -108,16 +129,17 @@ var SYMBOLS = {
       if((en.mem.grow||0) >= HYDRO_BUD){ c.morph(c.self,'bud',true); c.note('🌱 꽃봉오리가 맺혔다'); } } },
 
   bud:{ e:'🌷', n:'꽃봉오리', base:3, r:'common', noOffer:true,
-    d:'맺힌 것만으로 이미 값이 된다. ☀️ 태양광 패널과 인접하면 계속 자라 (최대 +8) 🌸 꽃이 핀다',
+    d:'☀️ 태양광 패널과 인접해야만 자란다. 햇빛을 네 번 받으면 🌸 꽃이 핀다',
     baseOf:function(en){ return 3 + (en.mem.grow||0); },
-    badge:function(en){ return '+' + (en.mem.grow || 0); },
+    // 남은 햇빛 횟수를 보여줌. +N을 그대로 이어받으면 저절로 자라는 것처럼 보임
+    badge:function(en){ return '☀️' + (HYDRO_MAX - (en.mem.grow||0)); },
     effect:function(c){ var en=c.self.entry;
       if(c.adj('solar').length && (en.mem.grow||0) < HYDRO_MAX) en.mem.grow = (en.mem.grow||0) + 1;
       if((en.mem.grow||0) >= HYDRO_MAX){ c.morph(c.self,'bloom',true); c.note('🌷 꽃이 폈다'); } } },
 
-  bloom:{ e:'🌸', n:'만개한 꽃', base:16, r:'uncommon', noOffer:true,
-    d:'기본 16. 인접한 🌸 만개한 꽃 1개당 +6',
-    effect:function(c){ var k=c.adj('bloom').length; if(k) c.addSelf(6*k); } },
+  bloom:{ e:'🌸', n:'만개한 꽃', base:18, r:'uncommon', noOffer:true,
+    d:'기본 18. 인접한 🌸 만개한 꽃 1개당 +8',
+    effect:function(c){ var k=c.adj('bloom').length; if(k) c.addSelf(8*k); } },
 
   duct:{ e:'🌬️', n:'환기구', base:1, r:'common', d:'상하좌우로 이어붙은 🌬️ 환기구 1개당 +1',
     effect:function(c){ var ch=ductChain(c.cells, c.self); ch.forEach(c.link); if(ch.length) c.addSelf(ch.length); } },
@@ -137,8 +159,8 @@ var SYMBOLS = {
       if(en.mem.age>=LARVA_HATCH){ c.morph(c.self,'alien'); c.note('🥚 부화했다'); } } },
 
   // ═══════════ 보통 — 판을 굴리는 엔진
-  bot:{ e:'🤖', n:'정비로봇', base:2, r:'uncommon', d:'인접한 🔩 볼트 · 🛢️ 윤활유 1개당 +4',
-    effect:function(c){ var k=c.adj('part','oil').length; if(k) c.addSelf(4*k); } },
+  bot:{ e:'🤖', n:'정비로봇', base:2, r:'uncommon', d:'인접한 🔩 볼트 · 🛢️ 윤활유 1개당 +5',
+    effect:function(c){ var k=c.adj('part','oil').length; if(k) c.addSelf(5*k); } },
 
   crew:{ e:'🧑‍🚀', n:'승무원', base:2, r:'uncommon', d:'인접한 🥫 식량 · 💧 정제수 1개당 +3',
     effect:function(c){ var k=c.adj('ration','water').length; if(k) c.addSelf(3*k); } },
@@ -148,15 +170,15 @@ var SYMBOLS = {
   navcom:{ e:'🖥️', n:'항법 컴퓨터', base:2, r:'uncommon', d:'같은 열의 심볼 1개당 +2',
     effect:function(c){ var k=c.col().length; if(k) c.addSelf(2*k); } },
 
-  cargo:{ e:'📦', n:'미확인 화물', base:0, r:'uncommon', d:'등장할 때마다 안이 +10씩 불어남. 🛠️ 만능공구가 열어줘야 값이 됨',
+  cargo:{ e:'📦', n:'미확인 화물', base:0, r:'uncommon', d:'등장할 때마다 안이 +9씩 불어남. 🛠️ 만능공구가 열어줘야 값이 됨',
     badge:function(en){ return '' + (en.mem.acc || 0); },
-    effect:function(c){ var en=c.self.entry; en.mem.acc=(en.mem.acc||0)+10; } },
+    effect:function(c){ var en=c.self.entry; en.mem.acc=(en.mem.acc||0)+9; } },
 
-  tool:{ e:'🛠️', n:'만능공구', base:1, r:'uncommon', d:'판에서 가장 많이 쌓인 📦 미확인 화물 하나를 열어 15 + 쌓인 값',
+  tool:{ e:'🛠️', n:'만능공구', base:1, r:'uncommon', d:'판에서 가장 많이 쌓인 📦 미확인 화물 하나를 열어 25 + 쌓인 값',
     effect:function(c){ var t=c.all('cargo'); if(!t.length) return;
       var best=t[0];
       for(var i=1;i<t.length;i++) if((t[i].entry.mem.acc||0) > (best.entry.mem.acc||0)) best=t[i];
-      c.addSelf(15 + (best.entry.mem.acc||0)); c.kill(best); } },
+      c.addSelf(25 + (best.entry.mem.acc||0)); c.kill(best); } },
 
   leak:{ e:'🌡️', n:'임시 배관', base:8, r:'uncommon', sticky:0.55,
     d:'혼자면 8. 대신 인접한 모든 심볼 -2. 정비로 버려도 55% 확률로 안 떨어짐',
@@ -171,9 +193,9 @@ var SYMBOLS = {
     effect:function(c){ var a=c.adj(); for(var i=0;i<a.length;i++) c.add(a[i],-2);
       if(c.rand()<0.18){ c.deckAdd('mold'); c.note('🦠 곰팡이가 번졌다'); } } },
 
-  kit:{ e:'🧰', n:'정비 키트', base:1, r:'uncommon', d:'인접한 🦠 곰팡이를 없애고 개당 +26',
+  kit:{ e:'🧰', n:'정비 키트', base:1, r:'uncommon', d:'인접한 🦠 곰팡이를 없애고 개당 +18',
     effect:function(c){ var t=c.adj('mold');
-      for(var i=0;i<t.length;i++){ c.addSelf(26); c.kill(t[i]); } } },
+      for(var i=0;i<t.length;i++){ c.addSelf(18); c.kill(t[i]); } } },
 
   hole:{ e:'🕳️', n:'미세 블랙홀', base:0, r:'uncommon',
     d:'인접한 심볼을 전부 0으로 만들고, 빨아들인 기본값의 3배를 자기 값으로',
@@ -192,13 +214,48 @@ var SYMBOLS = {
     effect:function(c){ var a=c.adj(); if(!a.length) return;
       var t=a[Math.floor(c.rand()*a.length)]; c.add(t,-8); c.addSelf(12); } },
 
-  coupon:{ e:'🎫', n:'보급 쿠폰', base:-3, r:'uncommon', costCutPct:0.12,
-    d:'자체 -3. 대신 화물칸에 있는 1장당 구역 소모량 -12% (합쳐서 최대 -40%)' },
+  coupon:{ e:'🎫', n:'보급 쿠폰', base:-3, r:'uncommon', costCutPct:0.08,
+    d:'자체 -3. 대신 화물칸에 있는 1장당 구역 소모량 -8% (합쳐서 최대 -30%)' },
+
+  purge:{ e:'🗑️', n:'폐기 슈트', base:4, r:'uncommon',
+    d:'판에 3개 이하로 깔린 종류 중 가장 적은 것을 화물칸에서 영구히 버리고 +10',
+    /* 정비는 구역당 한 장뿐이라, 덱을 한 종류로 몰아가려면 이런 수단이 필요함.
+       소수파부터 지우기 때문에 이미 기울어진 덱일수록 잘 듣는다 */
+    effect:function(c){
+      var a=c.all(), cnt={};
+      for(var i=0;i<a.length;i++) cnt[a[i].entry.id]=(cnt[a[i].entry.id]||0)+1;
+      var pickId=null, low=99;
+      // 판에 3개 이하로만 깔린 종류만 손댐 — 주력까지 지우면 덱이 말라버림
+      for(var id in cnt) if(cnt[id] <= 3 && cnt[id] < low && id !== 'purge'){ low=cnt[id]; pickId=id; }
+      if(!pickId) return;
+      for(var i=0;i<a.length;i++) if(a[i].entry.id===pickId){ c.kill(a[i]); break; }
+      c.addSelf(10); c.note('🗑️ '+SYMBOLS[pickId].e+' 한 장 폐기'); } },
+
+  culture:{ e:'🧫', n:'배양조', base:2, r:'common',
+    d:'판에서 가장 많이 깔린 종류를 화물칸에 하나 더 만든다',
+    /* 통일 덱의 엔진. 정비로 종류를 쳐내는 것만으로는 덱이 줄기만 해서,
+       "같은 걸 늘리는" 수단이 없으면 순도 덱은 굶어 죽는다 */
+    effect:function(c){
+      var a=c.all(), cnt={}, best=null, bn=0;
+      for(var i=0;i<a.length;i++){ var id=a[i].entry.id; cnt[id]=(cnt[id]||0)+1;
+        if(cnt[id]>bn){ bn=cnt[id]; best=id; } }
+      if(best && !SYMBOLS[best].noOffer){ c.deckAdd(best); c.note('🧫 '+SYMBOLS[best].e+' 배양됨'); } } },
+
+  antenna:{ e:'📡', n:'통신 안테나', base:2, r:'uncommon', d:'같은 행·열에 있는 📡 통신 안테나 1개당 +5',
+    effect:function(c){ var k=c.row('antenna').length + c.col('antenna').length; if(k) c.addSelf(5*k); } },
+
+  drill:{ e:'⛏️', n:'채굴 드릴', base:2, r:'uncommon', d:'인접한 💎 희귀 광물 1개당 +8 (광물은 그대로)',
+    effect:function(c){ var k=c.adj('ore').length; if(k) c.addSelf(8*k); } },
+
+  coolant:{ e:'🧊', n:'냉각재', base:3, r:'uncommon',
+    d:'인접한 ☢️ 반응로 1개당 +10. 붙어 있는 반응로는 곰팡이를 안 만든다',
+    effect:function(c){ var k=c.adj('reactor').length; if(k) c.addSelf(10*k); } },
 
   // ═══════════ 희귀 — 배수와 폭발
   reactor:{ e:'☢️', n:'반응로', base:3, r:'rare',
-    d:'인접한 모든 심볼 2배 (한 칸은 스핀당 한 번만). 대신 15% 확률로 화물칸에 🦠 곰팡이',
+    d:'인접한 모든 심볼 2배 (한 칸은 스핀당 한 번만). 대신 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재가 붙어 있으면 없음)',
     effect:function(c){ var a=c.adj(); for(var i=0;i<a.length;i++) c.mul(a[i],2);
+      if(c.adj('coolant').length) return;            // 냉각재가 붙어 있으면 오염 없음
       if(c.rand()<0.15){ c.deckAdd('mold'); c.note('☢️ 방사선에 곰팡이가 슬었다'); } } },
 
   turbine:{ e:'🌀', n:'순환 터빈', base:4, r:'rare', d:'같은 행의 모든 심볼 +5',
@@ -209,33 +266,39 @@ var SYMBOLS = {
       for(var i=0;i<a.length;i++) if(a[i].val>m) m=a[i].val;
       if(m) c.addSelf(m); } },
 
-  incin:{ e:'🔥', n:'소각로', base:3, r:'rare', d:'같은 행의 🦠 곰팡이를 전부 태워 개당 +45',
+  incin:{ e:'🔥', n:'소각로', base:3, r:'rare', d:'같은 행의 🦠 곰팡이를 전부 태워 개당 +32',
     effect:function(c){ var t=c.row('mold');
-      for(var i=0;i<t.length;i++){ c.addSelf(45); c.kill(t[i]); } } },
+      for(var i=0;i<t.length;i++){ c.addSelf(32); c.kill(t[i]); } } },
 
   tank:{ e:'🫙', n:'예비 산소탱크', base:5, r:'rare', d:'화물칸의 🫧 산소방울 1장당 +2 (최대 +24)',
     effect:function(c){ var k=0;
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='o2') k++;
       if(k) c.addSelf(Math.min(2*k, 24)); } },
 
-  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', d:'2% 확률로 +5000, 아니면 +2',
-    effect:function(c){ if(c.rand()<0.02){ c.addSelf(5000); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
+  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', d:'2% 확률로 +3500, 아니면 +2',
+    effect:function(c){ if(c.rand()<0.02){ c.addSelf(3500); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
 
   ore:{ e:'💎', n:'희귀 광물', base:9, r:'rare', d:'묵직하게 9' },
+
+  lens:{ e:'🪐', n:'중력 렌즈', base:0, r:'rare',
+    d:'판에서 가장 많이 깔린 종류를 찾아, 그 종류 전부에게 개수만큼 더해준다',
+    effect:function(c){ var top=c.topCount(); if(top<2) return;
+      var a=c.all(), cnt={};
+      for(var i=0;i<a.length;i++) cnt[a[i].entry.id]=(cnt[a[i].entry.id]||0)+1;
+      for(var i=0;i<a.length;i++) if(cnt[a[i].entry.id]===top) c.add(a[i], top);
+      c.addSelf(top); } },
 
   // ═══════════ 전설
   mastercode:{ e:'🗝️', n:'마스터 코드', base:5, r:'legend', d:'판 위의 📦 미확인 화물을 전부 열어 개당 60 + 쌓인 값',
     effect:function(c){ var t=c.all('cargo');
       for(var i=0;i<t.length;i++){ c.addSelf(60 + (t[i].entry.mem.acc||0)); c.kill(t[i]); } } },
 
-  aicore:{ e:'🧠', n:'AI 코어', base:10, r:'legend', d:'인접한 심볼 1개당 +8',
-    effect:function(c){ var k=c.adj().length; if(k) c.addSelf(8*k); } },
+  aicore:{ e:'🧠', n:'AI 코어', base:10, r:'legend', d:'인접한 심볼 1개당 +6',
+    effect:function(c){ var k=c.adj().length; if(k) c.addSelf(6*k); } },
 
-  align:{ e:'✨', n:'초공간 정렬', base:0, r:'legend', d:'판에 3개 이상 깔린 심볼 종류마다 +120',
-    effect:function(c){ var a=c.all(), cnt={}, k=0;
-      for(var i=0;i<a.length;i++) cnt[a[i].entry.id]=(cnt[a[i].entry.id]||0)+1;
-      for(var id in cnt) if(cnt[id]>=3) k++;
-      if(k) c.addSelf(120*k); } },
+  align:{ e:'✨', n:'초공간 정렬', base:6, r:'legend',
+    d:'이번 스핀의 순도를 4개 더 깔린 것으로 쳐준다. 순도가 이미 높을수록 무섭다',
+    effect:function(c){ c.purityBoost(4); c.note('✨ 위상이 맞았다'); } },
 
   critical:{ e:'⚛️', n:'임계 반응', base:0, r:'legend', d:'이번 스핀 총합 2배. 대신 다음 구역 소모량 +30%',
     effect:function(c){ c.spinMul(2); c.debt({mul:1.30}); c.note('⚛️ 임계 돌입 — 다음 구역이 무거워진다'); } },
@@ -245,8 +308,8 @@ var SYMBOLS = {
 
   // ═══════════ 부화로만 나오는 놈 (뽑기 목록엔 안 뜸)
   alien:{ e:'👾', n:'외계생명', base:6, r:'uncommon', noOffer:true,
-    d:'인접한 👾 외계생명 1개당 +8. 무리를 지으면 무섭다',
-    effect:function(c){ var k=c.adj('alien').length; if(k) c.addSelf(8*k); } },
+    d:'인접한 👾 외계생명 1개당 +6. 무리를 지으면 무섭다',
+    effect:function(c){ var k=c.adj('alien').length; if(k) c.addSelf(6*k); } },
 };
 
 // 12장. 20칸을 60%만 채워서 태양광·환기구가 자리를 볼 여지를 남김
@@ -324,7 +387,7 @@ function fillCells(cells, deck, rnd){
 function resolve(state, rnd){
   rnd = rnd || Math.random;
   var cells = state.cells;
-  var extra = { coins:0, notes:[], mul:1 };
+  var extra = { coins:0, notes:[], mul:1, purityBoost:0 };
 
   var alive = function(cell){ return cell.entry && !cell.dead; };
   var adjacent = function(cell){
@@ -381,6 +444,17 @@ function resolve(state, rnd){
           t.entry.id = id; if(!keepMem) t.entry.mem = {}; t.val = baseOf(t.entry); },
         gain: function(n){ if (!n) return; extra.coins += n; commit(); },
         spinMul: function(m){ extra.mul = Math.min(extra.mul * m, SPIN_MUL_CAP); },
+        purityBoost: function(n){ extra.purityBoost += n; },
+        topCount: function(){                       // 판에서 가장 많은 종류의 개수
+          var cnt = {}, best = 0;
+          for (var i=0;i<cells.length;i++){
+            if (!alive(cells[i])) continue;
+            var id = cells[i].entry.id;
+            cnt[id] = (cnt[id]||0) + 1;
+            if (cnt[id] > best) best = cnt[id];
+          }
+          return best;
+        },
         debt: function(o){
           if (o.mul) state.debt.mul *= o.mul;
           if (o.add) state.debt.add += o.add;
@@ -392,10 +466,21 @@ function resolve(state, rnd){
     })(cell);
   }
 
-  var total = extra.coins;
-  for (var i=0; i<cells.length; i++) if (alive(cells[i])) total += cells[i].val;
+  var total = extra.coins, counts = {}, top = 0;
+  for (var i=0; i<cells.length; i++){
+    if (!alive(cells[i])) continue;
+    total += cells[i].val;
+    var id = cells[i].entry.id;
+    counts[id] = (counts[id] || 0) + 1;
+    if (counts[id] > top) top = counts[id];
+  }
+  var filled = 0;
+  for (var i=0; i<cells.length; i++) if (alive(cells[i])) filled++;
+  var pur = purityMul(top + extra.purityBoost, filled);
   if (extra.mul !== 1) total = Math.round(total * extra.mul);
-  return { total: total, notes: extra.notes, mul: extra.mul };
+  if (pur !== 1)       total = Math.round(total * pur);
+  return { total: total, notes: extra.notes, mul: extra.mul,
+           purity: pur, purityTop: top + extra.purityBoost, filled: filled };
 }
 
 function removeFromDeck(deck, entry){
@@ -417,13 +502,14 @@ function costCutOf(deck, cost){
 }
 
 /* 구역이 깊어질수록 희귀·전설이 잘 나오게.
-   이게 없으면 후반에도 흔함만 계속 쌓여서 덱이 복리로 못 자람 —
-   즉 "더 깊이 갈수록 더 센 게 나온다"가 극고점 빌드의 유일한 엔진임 */
+   1구역은 흔함 판이고(보통이 3장 중 하나 뜰까 말까), 희귀는 2구역부터,
+   전설은 3구역부터 얼굴을 비친다. 초반부터 보라색이 쏟아지면
+   덱을 고민할 새도 없이 강한 걸 줍는 게임이 되어버림 */
 function weightFor(rar, round){
   round = round || 1;
-  if (rar === 'rare')   return Math.min(10 + round * 1.2, 24);
-  if (rar === 'legend') return Math.min( 3 + round * 0.6, 10);
-  if (rar === 'uncommon') return 27;
+  if (rar === 'uncommon') return Math.min(6 + (round-1) * 6, 30);
+  if (rar === 'rare')     return round <= 1 ? 0 : Math.min((round-1) * 2.5, 22);
+  if (rar === 'legend')   return round <= 2 ? 0 : Math.min((round-2) * 1.6, 10);
   return 60;
 }
 
@@ -450,7 +536,7 @@ var ENGINE = {
   RARITY:RARITY, SYMBOLS:SYMBOLS, START_DECK:START_DECK, COSTS:COSTS, HYDRO_BUD:HYDRO_BUD, HYDRO_MAX:HYDRO_MAX,
   costFor:costFor, spinsFor:spinsFor, mkEntry:mkEntry, baseOf:baseOf,
   shuffle:shuffle, makeCells:makeCells, fillCells:fillCells, resolve:resolve,
-  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor,
+  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor, purityMul:purityMul, PURITY:PURITY, PURITY_MIN:PURITY_MIN,
   ductChain:ductChain,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
