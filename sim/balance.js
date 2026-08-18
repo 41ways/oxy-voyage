@@ -52,10 +52,22 @@ var ARCH = {
                         bot:8, part:6, oil:6, navcom:8, turbine:10, tank:9, aicore:12,
                         nano:8, bloom:9, hydro:8, solar:7, culture:7, purge:6, cat:7, dog:8 },
                 noise:0.35 },
+  /* 센 걸 이것저것 주워담는 쪽 — 정족수를 하나도 못 채워서 손해를 봐야 정상 */
   '사람·욕심': { pick:{ wormhole:16, critical:16, emergency:14, kraken:16, aicore:15,
-                        prism:14, align:14, mastercode:14, reactor:12, ore:11, diamond:11,
+                        prism:14, align:14, mastercode:14, reactor:12, ore:11,
                         scope:11, lens:12, mold:8, leak:8, o2:5, ration:4, water:4 },
                 noise:0.25 },
+  /* 시작 덱을 갈아엎고 한 축으로 정제하는 쪽.
+     🗑️ 폐기 슈트와 정비로 🫧 산소방울·💧 정제수를 밀어내고,
+     🧫 배양조로 자기 축만 불린다 — 사람이 실제로 두는 수 */
+  '사람·정제': { pick:{ purge:20, culture:18, coil:16, anchor:15, lens:12, align:11,
+                        critical:10, o2:0, water:0, ration:0 },
+                noise:0.20 },
+  /* 한 축에 몰빵하는 쪽 — 정족수를 넘기면 고점이 뚫린다 */
+  '사람·집중': { pick:{ critical:20, align:19, kraken:18, aicore:18, mastercode:17,
+                        prism:16, wormhole:15, reactor:14, culture:9, purge:8,
+                        o2:5, ration:4, water:4, fuel:5 },
+                noise:0.22 },
 };
 
 function greedyBase(id){

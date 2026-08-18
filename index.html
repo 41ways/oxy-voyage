@@ -485,6 +485,18 @@
   }
   .rel.none{color:var(--dim); font-size:10px; min-height:0}
   #tip .rel{margin-top:6px; padding-top:6px; justify-content:flex-start; min-height:0}
+  /* 정족수 진행도 */
+  .quo{
+    display:flex; align-items:center; gap:6px; margin-top:7px;
+    font-size:10px; color:#ffbe3d; font-variant-numeric:tabular-nums;
+  }
+  .quo em{flex:1; height:5px; border-radius:3px; background:#2a3247; overflow:hidden; font-style:normal}
+  .quo em i{display:block; height:100%; background:linear-gradient(90deg,#ff9d3d,#ffbe3d)}
+  .quo b{font-weight:800}
+  .quo.done{color:var(--good)}
+  .quo.done em i{background:linear-gradient(90deg,#3ad77f,#6ee79a)}
+  .quo.full{color:#ff8ae0}
+  .quo.full em i{background:linear-gradient(90deg,#b06cff,#ff5fd2)}
   .modal .foot{margin-top:16px; display:flex; gap:10px; justify-content:center}
 
   /* 정산 화면 — 계산식 말고 라이프가 깎이는 그림 하나만 */
@@ -793,6 +805,21 @@ function scopeOf(d){
   return null;
 }
 
+/* 정족수가 걸린 심볼은 지금 몇 장 모았는지 보여줘야 판단이 됨.
+   "서너 장만 얹어두면 손해"라는 규칙은 진행도가 안 보이면 그냥 함정임 */
+function quorumRow(id){
+  const need = SYMBOLS[id].quorum, full = SYMBOLS[id].done;
+  if (!need) return '';
+  const have = game.deck.filter(x => x.id === id).length;
+  const goal = (full && have >= need) ? full : need;
+  const cls  = full && have >= full ? ' full' : have >= need ? ' done' : '';
+  const lab  = full && have >= need ? '완성까지' : '정족수';
+  return `<div class="quo${cls}">
+      <span>${cls === ' full' ? '완성' : lab}</span>
+      <em><i style="width:${Math.min(100, have/goal*100)}%"></i></em>
+      <b>${have}/${goal}</b></div>`;
+}
+
 function relRow(id){
   const r = relatedOf(id);
   if (!r.ids.length && !r.selfRef){
@@ -821,7 +848,7 @@ function offerSymbols(){
         <div class="nm">${s.n}</div>
         <div class="rar" style="color:${rar.color}">${rar.label}</div>
         <div class="ds">${s.d}</div>
-        ${relRow(id)}
+        ${relRow(id)}${quorumRow(id)}
         <div class="bs">기본 O₂: ${s.base}</div>
       </div>`;
     }).join('')}</div>`,
@@ -1309,7 +1336,7 @@ function showTip(id, x, y){
   const rar = RARITY[s.r];
   tip.innerHTML = `<b>${s.e} ${s.n} <span style="color:${rar.color};font-size:10px">${rar.label}</span></b>
     <div class="ds">${s.d}</div>
-    ${relRow(id)}
+    ${relRow(id)}${quorumRow(id)}
     <div class="ds" style="color:var(--o2)">기본 O₂: ${s.base}</div>`;
   tip.style.display = 'block';
   const r = tip.getBoundingClientRect();

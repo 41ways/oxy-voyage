@@ -75,6 +75,7 @@ function spinsFor(r){ return 5; }
     c.row() / c.col() 같은 행/열 (자기 제외)
     c.emptyAdj()      인접한 빈칸 개수
     c.deck            화물칸 배열 (읽기용)
+    c.deckCount(id)   화물칸에 그 심볼이 몇 장인지 (정족수 판정)
     c.cells           판 전체 칸 배열 (읽기용)
     c.link(t)         연출용으로 칸을 묶음 (조회 계열은 자동)
     c.addSelf(n)      자기 값 증가
@@ -98,6 +99,13 @@ function spinsFor(r){ return 5; }
     costCut         화물칸에 있는 것만으로 구역 소모량을 깎음
     sticky          정비로 버릴 때 이 확률로 안 버려짐
     noOffer         뽑기 목록에 안 뜸 (부화·변신으로만 얻음)
+    quorum          제 성능이 나오는 최소 장수 (여기까지 오면 안정 축과 비슷한 값)
+    done            덱을 완성했다고 보는 장수 (여기부터 고점이 뚫림)
+
+  ── 정족수에 대해
+  고점을 노리는 심볼은 화물칸에 quorum 장수가 모여야 진짜 값이 나온다.
+  그 전엔 있으나 마나여서, "센 거 서너 개만 얹어놓고 안정형으로 가기"가 손해가 된다.
+  덕분에 안정형은 안정형대로, 고점 덱은 한 축에 몰빵해야 성립한다.
 */
 var SYMBOLS = {
   // ═══════════ 흔함 — 기본 시너지
@@ -189,10 +197,10 @@ var SYMBOLS = {
   bot:{ e:'🤖', n:'정비로봇', base:2, r:'uncommon', d:'인접한 🔩 볼트 · 🛢️ 윤활유 1개당 +5',
     effect:function(c){ var k=c.adj('part','oil').length; if(k) c.addSelf(5*k); } },
 
-  crew:{ e:'🧑‍🚀', n:'승무원', base:2, r:'uncommon', d:'인접한 🥫 식량 · 💧 정제수 1개당 +3',
-    effect:function(c){ var k=c.adj('ration','water').length; if(k) c.addSelf(3*k); } },
+  crew:{ e:'🧑‍🚀', n:'승무원', base:2, r:'uncommon', d:'인접한 🥫 식량 · 💧 정제수 1개당 +4',
+    effect:function(c){ var k=c.adj('ration','water').length; if(k) c.addSelf(4*k); } },
 
-  fuel:{ e:'🔋', n:'연료전지', base:3, r:'uncommon',
+  fuel:{ e:'🔋', n:'연료전지', base:5, r:'uncommon',
     d:'인접한 ☢️ 반응로 · 🕳️ 미세 블랙홀 1개당 +7. 기본값이 커서 빨아먹히기 좋다',
     effect:function(c){ var k=c.adj('reactor','hole').length; if(k) c.addSelf(7*k); } },
 
@@ -267,14 +275,20 @@ var SYMBOLS = {
       c.addSelf(pickId==='mold' ? 30 : 10); c.note('🗑️ '+SYMBOLS[pickId].e+' 한 장 폐기'); } },
 
   culture:{ e:'🧫', n:'배양조', base:2, r:'common',
-    d:'판에서 가장 많이 깔린 종류를 화물칸에 하나 더 만든다. 🪐 중력 렌즈와 인접하면 두 장',
-    /* 통일 덱의 엔진. 정비로 종류를 쳐내는 것만으로는 덱이 줄기만 해서,
-       "같은 걸 늘리는" 수단이 없으면 순도 덱은 굶어 죽는다 */
+    d:'인접한 심볼 중 화물칸에 가장 많은 종류를 하나 더 만든다. 🪐 중력 렌즈와 인접하면 두 장',
+    /* 통일 덱의 엔진. 정비만으로는 덱이 줄기만 해서, 늘리는 수단이 없으면 순도 덱은 굶어 죽는다.
+       예전엔 "판 전체 최다"를 복제했는데, 시작 덱에 산소방울이 3장 깔려 있는 탓에
+       무슨 덱을 노리든 결국 산소방울만 불어났다. 인접한 것 중에서 고르게 바꿔서,
+       실제로 모으고 있는 심볼이 복제되도록 함 */
     effect:function(c){
-      var a=c.all(), cnt={}, best=null, bn=0;
-      for(var i=0;i<a.length;i++){ var id=a[i].entry.id; cnt[id]=(cnt[id]||0)+1;
-        if(cnt[id]>bn){ bn=cnt[id]; best=id; } }
-      if(!best || SYMBOLS[best].noOffer) return;
+      var a=c.adj(), cnt={}, best=null, bn=0;
+      for(var i=0;i<a.length;i++){
+        var id=a[i].entry.id;
+        if(SYMBOLS[id].noOffer) continue;
+        cnt[id] = c.deckCount(id);                 // 판이 아니라 화물칸 장수로 겨룸
+        if(cnt[id]>bn){ bn=cnt[id]; best=id; }
+      }
+      if(!best) return;
       var n = c.adj('lens').length ? 2 : 1;
       for(var j=0;j<n;j++) c.deckAdd(best);
       c.note('🧫 '+SYMBOLS[best].e+(n>1?' 두 장':'')+' 배양됨'); } },
@@ -322,14 +336,18 @@ var SYMBOLS = {
 
   // ═══════════ 희귀 — 배수와 폭발
   reactor:{ e:'☢️', n:'반응로', base:3, r:'rare',
-    d:'인접한 모든 심볼 2배 (한 칸은 스핀당 한 번만). 대신 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재 · 🧯 소화기가 붙어 있으면 없음)',
-    effect:function(c){ var a=c.adj(); for(var i=0;i<a.length;i++) c.mul(a[i],2);
+    quorum:5, done:9,
+    d:'화물칸의 ☢️ 반응로 — 5장부터 인접한 모든 심볼 2배, 완성(9장)이면 2배에 +9씩 더, 그 전엔 +4씩만. 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재 · 🧯 소화기가 붙어 있으면 없음)',
+    effect:function(c){ var a=c.adj(), q=c.deckCount('reactor');
+      for(var i=0;i<a.length;i++){
+        if(q>=5){ c.mul(a[i],2); if(q>=9) c.add(a[i],9); } else c.add(a[i],4);
+      }
       if(c.adj('coolant','extin').length) return;    // 냉각재·소화기가 붙어 있으면 오염 없음
       if(c.rand()<0.15){ c.deckAdd('mold'); c.note('☢️ 방사선에 곰팡이가 슬었다'); } } },
 
   turbine:{ e:'🌀', n:'순환 터빈', base:4, r:'rare',
-    d:'같은 행의 모든 심볼 +5. 그 행의 🌬️ 환기구 1개당 자신도 +6',
-    effect:function(c){ var a=c.row(); for(var i=0;i<a.length;i++) c.add(a[i],5);
+    d:'같은 행의 모든 심볼 +6. 그 행의 🌬️ 환기구 1개당 자신도 +6',
+    effect:function(c){ var a=c.row(); for(var i=0;i<a.length;i++) c.add(a[i],6);
       var d=c.row('duct').length; if(d) c.addSelf(6*d); } },
 
   nano:{ e:'🧬', n:'복제 나노봇', base:0, r:'rare', d:'인접한 심볼 중 가장 큰 값과 같아짐',
@@ -341,17 +359,19 @@ var SYMBOLS = {
     effect:function(c){ var t=c.row('mold');
       for(var i=0;i<t.length;i++){ c.addSelf(32); c.kill(t[i]); } } },
 
-  tank:{ e:'🫙', n:'예비 산소탱크', base:5, r:'rare', d:'화물칸의 🫧 산소방울 1장당 +2 (최대 +24)',
+  tank:{ e:'🫙', n:'예비 산소탱크', base:7, r:'rare', d:'화물칸의 🫧 산소방울 1장당 +2 (최대 +24)',
     effect:function(c){ var k=0;
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='o2') k++;
       if(k) c.addSelf(Math.min(2*k, 24)); } },
 
-  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare',
-    d:'2% 확률로 +3500, 아니면 +2. 🪐 중력 렌즈와 인접하면 확률이 세 배',
-    effect:function(c){ var p = 0.02 * (c.adj('lens').length ? 3 : 1);
+  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', quorum:6, done:11,
+    d:'화물칸의 🌌 웜홀 — 6장 미만이면 0.3%, 6장부터 2.2%, 완성(11장)이면 6% 확률로 +3500. 🪐 중력 렌즈와 인접하면 세 배',
+    effect:function(c){ var k=c.deckCount('wormhole');
+      var p = k>=11 ? 0.06 : k>=6 ? 0.022 : 0.003;
+      if(c.adj('lens').length) p *= 3;
       if(c.rand()<p){ c.addSelf(3500); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
 
-  ore:{ e:'💎', n:'희귀 광물', base:9, r:'rare', d:'묵직하게 9' },
+  ore:{ e:'💎', n:'희귀 광물', base:12, r:'rare', d:'묵직하게 12. 조건도 짝도 필요 없다' },
 
   lens:{ e:'🪐', n:'중력 렌즈', base:0, r:'rare',
     d:'판에서 가장 많이 깔린 종류를 찾아, 그 종류 전부에게 개수만큼 더해준다',
@@ -385,42 +405,54 @@ var SYMBOLS = {
       if((en.mem.grow||0) < 30) en.mem.grow=(en.mem.grow||0)+3; } },
 
   // ═══════════ 전설
-  mastercode:{ e:'🗝️', n:'마스터 코드', base:5, r:'legend', d:'판 위의 📦 미확인 화물을 전부 열어 개당 60 + 쌓인 값',
-    effect:function(c){ var t=c.all('cargo');
-      for(var i=0;i<t.length;i++){ c.addSelf(60 + (t[i].entry.mem.acc||0)); c.kill(t[i]); } } },
+  mastercode:{ e:'🗝️', n:'마스터 코드', base:5, r:'legend', quorum:2, done:4,
+    d:'📦 미확인 화물을 열어 개당 60 + 쌓인 값 (완성 4장이면 개당 140). 화물칸의 🗝️ 마스터 코드가 2장부터 판 위의 전부, 아니면 하나만',
+    effect:function(c){ var t=c.all('cargo'); if(!t.length) return;
+      var q=c.deckCount('mastercode');
+      if(q<2) t=[t[0]];
+      var per = q>=4 ? 140 : 60;
+      for(var i=0;i<t.length;i++){ c.addSelf(per + (t[i].entry.mem.acc||0)); c.kill(t[i]); } } },
 
-  aicore:{ e:'🧠', n:'AI 코어', base:10, r:'legend', d:'인접한 심볼 1개당 +6. 그중 🖥️ 항법 컴퓨터는 1개당 +16',
-    effect:function(c){ var k=c.adj().length, n=c.adj('navcom').length;
-      if(k) c.addSelf(6*k + 10*n); } },
+  aicore:{ e:'🧠', n:'AI 코어', base:5, r:'legend', quorum:3, done:5,
+    d:'인접한 심볼 1개당 — 화물칸의 🧠 AI 코어가 3장 미만이면 +1, 3장부터 +5, 완성(5장)이면 +14. 🖥️ 항법 컴퓨터는 1개당 +10 더',
+    effect:function(c){ var k=c.adj().length; if(!k) return;
+      var q=c.deckCount('aicore'), per = q>=5 ? 14 : q>=3 ? 5 : 1;
+      c.addSelf(per*k + 10*c.adj('navcom').length); } },
 
-  align:{ e:'✨', n:'초공간 정렬', base:6, r:'legend',
-    d:'이번 스핀의 순도를 4개 더 깔린 것으로 쳐준다. 순도가 이미 높을수록 무섭다',
-    effect:function(c){ c.purityBoost(4); c.note('✨ 위상이 맞았다'); } },
+  align:{ e:'✨', n:'초공간 정렬', base:6, r:'legend', quorum:2, done:4,
+    d:'순도를 — 화물칸의 ✨ 초공간 정렬이 2장부터 4개, 완성(4장)이면 7개, 그 전엔 1개 더 깔린 것으로 쳐준다',
+    effect:function(c){ var q=c.deckCount('align'), n = q>=4 ? 7 : q>=2 ? 4 : 1;
+      c.purityBoost(n); if(n>1) c.note('✨ 위상이 맞았다'); } },
 
-  critical:{ e:'⚛️', n:'임계 반응', base:0, r:'legend', d:'이번 스핀 총합 2배. 대신 다음 구역 소모량 +30% — 🧊 냉각재가 인접하면 빚이 없다',
-    effect:function(c){ c.spinMul(2);
+  critical:{ e:'⚛️', n:'임계 반응', base:0, r:'legend', quorum:2, done:4,
+    d:'화물칸의 ⚛️ 임계 반응 — 2장부터 이번 스핀 2배, 완성(4장)이면 3배, 그 전엔 1.15배. 다음 구역 소모량 +30% — 🧊 냉각재가 인접하면 빚이 없다',
+    effect:function(c){ var q=c.deckCount('critical');
+      c.spinMul(q>=4 ? 3 : q>=2 ? 2 : 1.15);
       if(c.adj('coolant').length){ c.note('⚛️ 냉각재가 임계를 잡았다 — 빚 없음'); return; }
       c.debt({mul:1.30}); c.note('⚛️ 임계 돌입 — 다음 구역이 무거워진다'); } },
 
-  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', d:'지금 즉시 +400. 대신 다음 구역 소모량 +35% — 화물칸에 🎫 보급 쿠폰이 있으면 절반만',
-    effect:function(c){ c.gain(400);
+  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', quorum:3, done:5,
+    d:'화물칸의 🩸 비상 배급 — 3장부터 +400, 완성(5장)이면 +1100, 그 전엔 +90. 다음 구역 소모량 +35% — 🎫 보급 쿠폰이 있으면 절반만',
+    effect:function(c){ var q=c.deckCount('emergency');
+      c.gain(q>=5 ? 1100 : q>=3 ? 400 : 90);
       var hasCoupon=false;
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='coupon'){ hasCoupon=true; break; }
       c.debt({mul: hasCoupon ? 1.175 : 1.35});
       c.note('🩸 비상 배급 개봉' + (hasCoupon ? ' (쿠폰으로 빚 절반)' : '')); } },
 
 
-  kraken:{ e:'🦑', n:'우주 크라켄', base:0, r:'legend',
-    d:'인접한 심볼을 통째로 삼켜, 각 기본값의 3배를 가져간다 (삼킨 건 화물칸에서도 사라짐)',
-    effect:function(c){ var a=c.adj();
-      for(var i=0;i<a.length;i++){ var b=baseOf(a[i].entry); c.addSelf(Math.max(0,b)*3); c.kill(a[i]); }
+  kraken:{ e:'🦑', n:'우주 크라켄', base:0, r:'legend', quorum:2, done:4,
+    d:'인접한 심볼을 통째로 삼킨다. 화물칸의 🦑 우주 크라켄이 2장부터 각 기본값의 3배, 완성(4장)이면 6배, 그 전엔 1배 (삼킨 건 화물칸에서도 사라짐)',
+    effect:function(c){ var q=c.deckCount('kraken'), a=c.adj(), m = q>=4 ? 6 : q>=2 ? 3 : 1;
+      for(var i=0;i<a.length;i++){ var b=baseOf(a[i].entry); c.addSelf(Math.max(0,b)*m); c.kill(a[i]); }
       if(a.length) c.note('🦑 '+a.length+'개를 삼켰다'); } },
 
-  prism:{ e:'🌈', n:'스펙트럼', base:5, r:'legend',
-    d:'판에 심볼 종류가 12가지 이상이면 이번 스핀 총합 2배',
+  prism:{ e:'🌈', n:'스펙트럼', base:5, r:'legend', quorum:2, done:4,
+    d:'판의 심볼 종류가 — 화물칸의 🌈 스펙트럼이 2장부터 12가지, 완성(4장)이면 9가지, 그 전엔 16가지 이상일 때 이번 스핀 2배',
     effect:function(c){ var a=c.all(), seen={}, k=0;
       for(var i=0;i<a.length;i++){ var id=a[i].entry.id; if(!seen[id]){ seen[id]=1; k++; } }
-      if(k>=12){ c.spinMul(2); c.note('🌈 스펙트럼이 갈라졌다'); } } },
+      var q=c.deckCount('prism'), need = q>=4 ? 9 : q>=2 ? 12 : 16;
+      if(k >= need){ c.spinMul(2); c.note('🌈 스펙트럼이 갈라졌다'); } } },
 
   // ═══════════ 부화로만 나오는 놈 (뽑기 목록엔 안 뜸)
   alien:{ e:'👾', n:'외계생명', base:6, r:'uncommon', noOffer:true,
@@ -543,6 +575,10 @@ function resolve(state, rnd){
         self: cell,
         cells: cells,
         deck: state.deck,
+        deckCount: function(id){                    // 화물칸에 이 심볼이 몇 장인가 (정족수 판정용)
+          var n=0; for (var i=0;i<state.deck.length;i++) if (state.deck[i].id===id) n++;
+          return n;
+        },
         adj: function(){ return seen(filt(adjacent(cell), [].slice.call(arguments))); },
         all: function(){ return seen(filt(cells.filter(function(o){ return o!==cell; }), [].slice.call(arguments))); },
         row: function(){ return seen(filt(cells.filter(function(o){ return o!==cell && o.r===cell.r; }), [].slice.call(arguments))); },
