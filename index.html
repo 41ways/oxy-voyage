@@ -75,35 +75,43 @@
   #muteBtn{padding:6px 10px; font-size:14px; line-height:1}
   .spacer{flex:1}
 
-  /* HUD — 이 네 개가 게임의 전부라 크게 박아둠 */
-  .hud{display:grid; grid-template-columns:1fr 1.6fr; gap:10px}
-  @media (max-width:640px){ .hud{grid-template-columns:1fr 1fr} }
-  .tile{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:10px 14px 11px; position:relative; overflow:hidden; backdrop-filter:blur(10px);
+  /* ── 왼쪽 계기판. 구역이 제일 크고 아래로 갈수록 부차적 */
+  .gauges{display:flex; flex-direction:column; gap:10px}
+  .g{
+    background:linear-gradient(180deg,rgba(36,26,82,.8),rgba(20,14,48,.85));
+    border:1px solid rgba(186,124,255,.35); border-radius:12px;
+    padding:10px 13px 11px; backdrop-filter:blur(10px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 0 16px rgba(120,80,220,.16);
   }
-  .tile span{display:block; font-size:11px; color:var(--dim); margin-bottom:2px}
-  .tile b{font-size:30px; line-height:1.05; font-variant-numeric:tabular-nums; letter-spacing:-1px}
-  .tile .dots{display:flex; gap:4px; margin-top:7px; flex-wrap:wrap}
-  .tile .dots i{width:9px; height:9px; border-radius:50%; background:#3b455e; display:block}
-  .tile .dots i.on{background:var(--o2); box-shadow:0 0 7px rgba(111,220,255,.7)}
-  .tile em{font-style:normal; font-size:10px; color:var(--legend); display:block; margin-top:4px}
+  .g span{display:block; font-size:10px; letter-spacing:1.2px; color:#a394de; margin-bottom:2px}
+  .g b{font-size:28px; line-height:1.02; font-variant-numeric:tabular-nums; letter-spacing:-1px}
+  .g.big{padding:14px 13px 16px}
+  .g.big span{font-size:11px}
+  .g.big b{font-size:58px; color:#fff; text-shadow:0 0 10px rgba(255,255,255,.5), 0 0 30px rgba(120,190,255,.7)}
+  .g.o2 b{color:var(--o2); text-shadow:0 0 14px rgba(111,220,255,.6)}
+  .g.o2 b::after{content:' O₂'; font-size:12px; letter-spacing:0; opacity:.55}
+  .g.cost b{color:var(--bad); text-shadow:0 0 14px rgba(255,123,123,.5)}
+  .g em{font-style:normal; font-size:10px; color:var(--legend); display:block; margin-top:3px}
+  .g .dots{display:flex; gap:5px; margin-top:8px; flex-wrap:wrap}
+  .g .dots i{width:10px; height:10px; border-radius:50%; background:#332a5e; display:block}
+  .g .dots i.on{background:var(--o2); box-shadow:0 0 8px rgba(111,220,255,.8)}
 
   /* 산소가 빠져나가는 순간 — 놓치면 안 되는 장면이라 화면째로 흔듦 */
-  body.draining .ro.o2{
+  body.draining .g.o2{
     border-color:var(--bad);
     background:linear-gradient(180deg,#3a0f16,#1a0a20);
     animation:shake .42s ease-in-out infinite;
   }
-  body.draining .ro.o2 b{color:var(--bad); text-shadow:0 0 18px rgba(255,123,123,.75)}
+  body.draining .g.o2 b{color:var(--bad); text-shadow:0 0 18px rgba(255,123,123,.75)}
   body.draining .life b{color:var(--bad); text-shadow:0 0 24px rgba(255,123,123,.45)}
   @keyframes shake{
     0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)}
     50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
   }
 
-  main{display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start}
-  @media (max-width:900px){ main{grid-template-columns:1fr} }
+  main{display:grid; grid-template-columns:196px minmax(0,1fr) 288px; gap:16px; align-items:start}
+  @media (max-width:1180px){ main{grid-template-columns:170px minmax(0,1fr) 262px; gap:12px} }
+  @media (max-width:980px){ main{grid-template-columns:1fr} }
 
   /* ── 슬롯머신 캐비닛 ─────────────────────────────
      네온 튜브 외곽 + 아치형 간판 + 릴 창 + 콘솔 + 배출구.
@@ -155,7 +163,7 @@
   }
 
   /* 릴 창 — 네온 베젤 안에 유리 */
-  .machine{display:flex; gap:8px; align-items:stretch; padding:4px 12px 12px 18px}
+  .machine{padding:4px 18px 12px}
   .window{
     position:relative; flex:1; min-width:0; border-radius:16px; padding:10px;
     background:linear-gradient(180deg,#4b3a8e,#241a52 55%,#150f36);
@@ -183,36 +191,45 @@
   }
   canvas{width:100%; height:auto; display:block; border-radius:9px; touch-action:manipulation}
 
-  /* 콘솔 — 네온 계기 + 알약 버튼 */
+  /* 콘솔 — 버튼과 7세그먼트 디스플레이 */
   .console{
     margin:0 18px; padding:11px 13px; border-radius:14px;
     background:linear-gradient(180deg,#241a52,#140e30);
     border:1px solid rgba(186,124,255,.4);
     box-shadow:inset 0 2px 8px rgba(0,0,0,.6), 0 0 16px rgba(120,80,220,.25);
-    display:flex; flex-direction:column; gap:10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   }
-  .readouts{display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:9px}
-  .ro{
-    padding:6px 11px 7px; border-radius:9px; position:relative;
-    background:linear-gradient(180deg,#0b0920,#141034);
-    border:1px solid rgba(120,90,200,.5);
-    box-shadow:inset 0 3px 8px rgba(0,0,0,.75);
-  }
-  .ro span{display:block; font-size:9px; letter-spacing:1.4px; color:#9d8cd8}
-  .ro b{font-size:23px; line-height:1.1; font-variant-numeric:tabular-nums; letter-spacing:-.5px}
-  .ro em{font-style:normal; font-size:9px; color:var(--legend); display:block}
-  .ro.o2 b{color:#6fdcff; text-shadow:0 0 12px rgba(111,220,255,.75)}
-  .ro.o2 b::after{content:' O₂'; font-size:11px; letter-spacing:0; opacity:.55}
-  .ro.cost b{color:#ff7b7b; text-shadow:0 0 12px rgba(255,123,123,.6)}
-  .ro.score b{color:#ffe08a; text-shadow:0 0 12px rgba(255,204,92,.6)}
-
   .pill{
-    border-radius:999px; padding:8px 16px; font-size:13px; font-weight:800; letter-spacing:.5px;
-    border:1px solid rgba(255,255,255,.28);
+    border-radius:999px; padding:9px 17px; font-size:13px; font-weight:800; letter-spacing:.5px;
+    border:1px solid rgba(255,255,255,.28); flex:none;
   }
   .pill.cyan{background:linear-gradient(180deg,#2fd0ea,#1183ad); box-shadow:0 0 14px rgba(58,215,255,.5), inset 0 1px 0 rgba(255,255,255,.5)}
   .pill.pink{background:linear-gradient(180deg,#ff6fc4,#c02c8e); box-shadow:0 0 14px rgba(255,95,210,.45), inset 0 1px 0 rgba(255,255,255,.45)}
   .pill:hover:not(:disabled){filter:brightness(1.14)}
+
+  /* 7세그먼트 흉내 — 꺼진 획을 흐리게 깔고 그 위에 실제 값을 겹침 */
+  .seg{
+    position:relative; padding:9px 11px 8px; border-radius:8px; text-align:right;
+    background:linear-gradient(180deg,#0a0512,#160c22);
+    border:1px solid rgba(186,124,255,.35);
+    box-shadow:inset 0 4px 10px rgba(0,0,0,.9), 0 0 10px rgba(255,60,60,.12);
+    font-family:"Courier New",ui-monospace,monospace; font-weight:700;
+    font-variant-numeric:tabular-nums; letter-spacing:3px; line-height:1;
+  }
+  .seg i{font-style:normal; color:rgba(255,70,70,.13)}     /* 꺼진 획 */
+  .seg b{
+    position:absolute; top:50%; transform:translateY(-50%);
+    color:#ff4b4b; text-shadow:0 0 7px rgba(255,60,60,.95), 0 0 18px rgba(255,40,40,.55);
+  }
+  .seg u{text-decoration:none; color:#ff8a8a; font-size:11px; letter-spacing:0; margin-left:2px}
+  .seg.spd{font-size:19px; min-width:78px}
+  .seg.spd b{right:27px}
+  .seg.score{font-size:20px; padding-top:16px; min-width:136px; flex:1}
+  .seg.score span{
+    position:absolute; left:11px; top:4px; font-family:inherit;
+    font-size:8px; letter-spacing:2px; color:#7a6bb5; text-shadow:none;
+  }
+  .seg.score b{right:11px}
 
   /* 하단 배출구 */
   .payout{
@@ -237,10 +254,79 @@
   }
   @media (max-width:640px){
     .cabinet{border-radius:40px 40px 16px 16px}
-    .readouts{grid-template-columns:1fr}
+    .console{justify-content:center}
   }
 
-  .actions{display:flex; gap:10px}
+  /* ── 레버. 기계 오른쪽 옆구리에 달려 바깥으로 삐져나온다.
+     캐비닛 안쪽 칸에 두면 배경에 묻혀서 안 보였고, 실은 이 블록이
+     통째로 지워져 있어서 아예 스타일이 없는 상태였음.
+     움직임은 수직 이동만 — 회전을 주면 옆으로 딸랑거리는 장식처럼 보임 */
+  .lever{
+    position:absolute; right:-54px; top:150px; width:96px; height:240px;
+    cursor:pointer; user-select:none; z-index:5;
+  }
+  .lever .rail{
+    position:absolute; left:50%; margin-left:-14px; top:32px; bottom:62px; width:28px;
+    background:linear-gradient(90deg,#0a0618,#2a1e58 45%,#0a0618);
+    border:1px solid rgba(186,124,255,.45); border-radius:14px;
+    box-shadow:inset 0 5px 12px rgba(0,0,0,.85), 0 0 14px rgba(140,90,240,.35);
+  }
+  .lever .arm{
+    position:absolute; left:50%; margin-left:-25px; top:8px; width:50px; height:190px;
+    transition:transform .3s cubic-bezier(.3,1.5,.5,1); z-index:1;
+  }
+  .lever .shaft{
+    position:absolute; left:50%; margin-left:-9px; top:36px; bottom:0; width:18px;
+    background:linear-gradient(90deg,#3c4468,#f2f7ff 36%,#9fb0d8 62%,#39415f);
+    border-radius:9px; box-shadow:0 2px 8px rgba(0,0,0,.55);
+  }
+  .lever .knob{
+    position:absolute; left:0; top:0; width:50px; height:50px; border-radius:50%;
+    background:radial-gradient(circle at 33% 27%, #baf6ff, #2fd0ea 46%, #1060a8 78%, #0a2f60);
+    box-shadow:
+      0 0 20px rgba(58,215,255,.9), 0 0 46px rgba(58,215,255,.45),
+      0 8px 18px rgba(0,0,0,.6), inset 0 -6px 12px rgba(0,0,0,.35),
+      inset 0 4px 9px rgba(255,255,255,.55);
+    cursor:grab;
+  }
+  .lever:active .knob{cursor:grabbing}
+  .lever .housing{
+    position:absolute; left:50%; margin-left:-26px; bottom:32px; width:52px; height:44px;
+    background:linear-gradient(180deg,#6a5bb0,#241a52);
+    border:1px solid rgba(200,150,255,.6); border-radius:12px; z-index:2;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35), 0 5px 12px rgba(0,0,0,.55),
+               0 0 16px rgba(150,100,240,.35);
+  }
+  .lever .guide{
+    position:absolute; left:50%; margin-left:-8px; bottom:78px;
+    display:flex; flex-direction:column; align-items:center; pointer-events:none; z-index:3;
+  }
+  .lever .guide i{font-style:normal; font-size:16px; line-height:.8; color:#6fdcff; opacity:.25;
+                  animation:guideBlink 1.4s ease-in-out infinite}
+  .lever .guide i:nth-child(2){animation-delay:.16s}
+  .lever .guide i:nth-child(3){animation-delay:.32s}
+  @keyframes guideBlink{ 0%,100%{opacity:.15} 45%{opacity:.9} }
+  .lever .hint{
+    position:absolute; bottom:6px; left:0; right:0; text-align:center;
+    font-size:10px; font-weight:700; letter-spacing:1.5px; color:#8f7fd0;
+  }
+  .lever:hover:not(.off) .arm{transform:translateY(22px)}
+  .lever.pulled .arm{transform:translateY(124px); transition-duration:.11s; transition-timing-function:ease-in}
+  /* 첫 판에는 주기적으로 아래로만 내려갔다 돌아옴 */
+  .lever.fresh .arm{animation:leverNudge 2.2s cubic-bezier(.4,0,.3,1) infinite}
+  .lever.fresh .hint{color:#6fdcff; animation:guideBlink 1.4s ease-in-out infinite}
+  @keyframes leverNudge{
+    0%,60%{transform:translateY(0)}
+    72%{transform:translateY(34px)}
+    82%{transform:translateY(11px)}
+    92%{transform:translateY(22px)}
+    100%{transform:translateY(0)}
+  }
+  .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
+  .lever.off{opacity:.3; pointer-events:none}
+  @media (max-width:1180px){ .lever{right:-42px; transform:scale(.86); transform-origin:top center} }
+  @media (max-width:980px){ .lever{position:static; width:100%; height:150px; margin:0 auto 6px} }
+
   button{
     font:inherit; font-weight:600; color:var(--fg); cursor:pointer;
     background:var(--panel2); border:1px solid var(--line); border-radius:10px;
@@ -250,7 +336,7 @@
   button:disabled{opacity:.4; cursor:default}
   #speedBtn{min-width:56px}
 
-  aside{display:flex; flex-direction:column; gap:14px}
+  .side{display:flex; flex-direction:column; gap:14px}
   .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; backdrop-filter:blur(10px)}
   .card h2{font-size:12px; color:var(--dim); margin:0 0 9px; font-weight:600; letter-spacing:.3px}
   .deck{display:flex; flex-wrap:wrap; gap:5px; max-height:212px; overflow-y:auto}
@@ -349,13 +435,18 @@
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
       <button id="muteBtn" title="소리 켜기/끄기">🔊</button>
     </div>
-    <div class="hud">
-      <div class="tile"><span>구역</span><b id="sRound">1</b></div>
-      <div class="tile"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
-    </div>
   </header>
 
   <main>
+    <!-- 왼쪽: 계기판 (구역이 제일 크다) -->
+    <aside class="gauges">
+      <div class="g big"><span>구역</span><b id="sRound">1</b></div>
+      <div class="g"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
+      <div class="g o2"><span>보유 산소</span><b id="sCoins">0</b></div>
+      <div class="g cost"><span>구역 산소 소모량</span><b id="sCost">90</b><em id="sDebt"></em></div>
+    </aside>
+
+    <!-- 가운데: 슬롯머신 -->
     <div class="cabinet">
       <div class="topper">
         <span class="bulbrow"></span>
@@ -365,38 +456,40 @@
           <span class="deco">🚀</span>
         </div>
       </div>
+
       <div class="machine">
         <div class="window">
           <canvas id="reel" width="544" height="440"></canvas>
           <span class="reelbars"></span>
           <span class="glass"></span>
         </div>
-        <div class="lever fresh" id="lever" title="레버를 아래로 당긴다 (Space)">
-          <span class="rail"></span>
-          <span class="guide"><i>▾</i><i>▾</i><i>▾</i></span>
-          <span class="arm"><i class="shaft"></i><i class="knob"></i></span>
-          <span class="housing"></span>
-          <span class="hint">당기기</span>
-        </div>
       </div>
+
+      <!-- 레버는 기계 오른쪽 바깥으로 삐져나오게 -->
+      <div class="lever fresh" id="lever" title="레버를 아래로 당긴다 (Space)">
+        <span class="rail"></span>
+        <span class="guide"><i>▾</i><i>▾</i><i>▾</i></span>
+        <span class="arm"><i class="shaft"></i><i class="knob"></i></span>
+        <span class="housing"></span>
+        <span class="hint">당기기</span>
+      </div>
+
       <div class="console">
-        <div class="readouts">
-          <div class="ro o2"><span>보유 산소</span><b id="sCoins">0</b></div>
-          <div class="ro cost"><span>구역 소모</span><b id="sCost">90</b><em id="sDebt"></em></div>
-          <div class="ro score"><span>점수</span><b id="sScore">0</b></div>
-        </div>
-        <div class="actions">
-          <button id="speedBtn" class="pill cyan" title="연출 배속">1×</button>
-          <button id="resetBtn" class="pill pink">새 항해</button>
-        </div>
+        <button id="speedBtn" class="pill cyan" title="연출 배속">배속</button>
+        <div class="seg spd"><i>8.8</i><b id="speedRead">1.0</b><u>×</u></div>
+        <button id="resetBtn" class="pill pink">새 항해</button>
+        <div class="seg score"><span>SCORE</span><i>8888888</i><b id="sScore">0</b></div>
       </div>
+
       <div class="payout">
         <span class="coinin">COIN IN</span>
         <span class="slotmouth"></span>
         <span class="paylabel">✦ PAYOUT ✦</span>
       </div>
     </div>
-    <aside>
+
+    <!-- 오른쪽: 화물칸 · 항해일지 -->
+    <aside class="side">
       <div class="card">
         <h2>화물칸 <span id="deckCount"></span></h2>
         <div class="deck" id="deck"></div>
@@ -446,7 +539,7 @@ const disp = { coins:0, lock:false };        // 화면에 보여줄 O₂ (실제
 // ══════════════════════════════════ 소리
 /* 오실레이터 하나로 끝내는 최소 구현. 슬롯은 소리가 절반이라 안 넣을 수가 없음.
    AudioContext는 첫 클릭(스핀 버튼) 안에서 만들어져서 자동재생 정책에 안 걸림 */
-let actx = null, muted = false;
+let actx = null, muted = localStorage.getItem('oxy.muted') !== '0';   // 기본은 음소거
 function beep(freq, dur, type, gain){
   if (muted) return;
   try{
@@ -1116,14 +1209,18 @@ lever.onclick = pullLever;
 
 $('#resetBtn').onclick = () => { if (!busy) newGame(); };
 const SPEEDS = [1, 1.5, 2];
-$('#speedBtn').textContent = speed + '×';
-$('#speedBtn').onclick = ev => {
+const showSpeed = () => { $('#speedRead').textContent = speed.toFixed(1); };
+showSpeed();
+$('#speedBtn').onclick = () => {
   speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
   localStorage.setItem('oxy.speed', String(speed));
-  ev.currentTarget.textContent = speed + '×';
+  showSpeed();
+  beep(880, .04, 'square', .04);
 };
+$('#muteBtn').textContent = muted ? '🔇' : '🔊';
 $('#muteBtn').onclick  = ev => {
   muted = !muted;
+  localStorage.setItem('oxy.muted', muted ? '1' : '0');
   ev.currentTarget.textContent = muted ? '🔇' : '🔊';
   if (!muted) beep(660, .06, 'sine', .04);
 };
