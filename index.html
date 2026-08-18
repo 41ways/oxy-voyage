@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우주탐험</title>
+<style>
+  /* ══════════════════════════════════════════════════════
+     기본 골격 — 다크 테마 고정. 슬롯판만 canvas고 나머진 DOM
+     ══════════════════════════════════════════════════════ */
+  :root{
+    --bg:#0d1017; --panel:#161a24; --panel2:#1f2432; --line:#2b3142;
+    --fg:#e8ecf4; --dim:#8f99ad; --o2:#5fd3ff; --bad:#ff6b6b; --good:#5ddb8f;
+    --common:#9aa5b1; --uncommon:#4ea1ff; --rare:#b07cff; --legend:#ffb020;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{max-width:1040px; margin:0 auto; padding:16px 16px 40px}
+
+  header{margin-bottom:14px}
+  .titlebar{display:flex; align-items:center; gap:14px; padding:0 4px 10px}
+  .titlebar h1{font-size:17px; margin:0; letter-spacing:-.5px}
+  .titlebar h1 small{display:block; font-size:10px; color:var(--dim); font-weight:400; letter-spacing:0}
+  .mini{display:flex; flex-direction:column; align-items:flex-end}
+  .mini span{font-size:10px; color:var(--dim)}
+  .mini b{font-size:15px; font-variant-numeric:tabular-nums}
+  .mini.best b{color:var(--good)}
+  #muteBtn{padding:6px 10px; font-size:14px; line-height:1}
+  .spacer{flex:1}
+
+  /* HUD — 이 네 개가 게임의 전부라 크게 박아둠 */
+  .hud{display:grid; grid-template-columns:1.3fr 1fr 1.2fr 1.2fr; gap:10px}
+  @media (max-width:640px){ .hud{grid-template-columns:1fr 1fr} }
+  .tile{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px 11px; position:relative; overflow:hidden;
+  }
+  .tile span{display:block; font-size:11px; color:var(--dim); margin-bottom:2px}
+  .tile b{font-size:30px; line-height:1.05; font-variant-numeric:tabular-nums; letter-spacing:-1px}
+  .tile.o2{border-color:#1d4e63; background:linear-gradient(180deg,#122733,#161a24)}
+  .tile.o2 b{color:var(--o2)}
+  .tile.o2 b::after{content:' O₂'; font-size:13px; letter-spacing:0; opacity:.6}
+  .tile.cost{border-color:#5c2b30; background:linear-gradient(180deg,#2a171a,#161a24)}
+  .tile.cost b{color:var(--bad)}
+  .tile .dots{display:flex; gap:4px; margin-top:7px}
+  .tile .dots i{width:9px; height:9px; border-radius:50%; background:#2b3142; display:block}
+  .tile .dots i.on{background:var(--o2); box-shadow:0 0 7px rgba(95,211,255,.6)}
+
+  /* 산소가 빠져나가는 순간 — 놓치면 안 되는 장면이라 화면째로 흔듦 */
+  body.draining .tile.o2{
+    border-color:var(--bad);
+    background:linear-gradient(180deg,#3a1a1e,#161a24);
+    animation:shake .42s ease-in-out infinite;
+  }
+  body.draining .tile.o2 b{color:var(--bad); text-shadow:0 0 16px rgba(255,107,107,.55)}
+  body.draining .drain .dn.good b{color:var(--bad); text-shadow:0 0 16px rgba(255,107,107,.5)}
+  @keyframes shake{
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)}
+    50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
+  }
+
+  /* 정산 모달의 숫자 줄 */
+  .drain{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin:6px 0 2px}
+  .drain .dn{display:flex; flex-direction:column; gap:3px; min-width:96px}
+  .drain .dn span{font-size:11px; color:var(--dim)}
+  .drain .dn b{font-size:34px; font-variant-numeric:tabular-nums; letter-spacing:-1px}
+  .drain .dn.bad b{color:var(--bad)}
+  .drain .dn.good b{color:var(--good)}
+  .drain .dop{font-size:22px; color:var(--dim)}
+
+  main{display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start}
+  @media (max-width:900px){ main{grid-template-columns:1fr} }
+
+  .board{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:14px; display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  canvas{width:100%; max-width:544px; height:auto; display:block; touch-action:manipulation}
+
+  .actions{display:flex; gap:10px; width:100%; max-width:544px}
+  button{
+    font:inherit; font-weight:600; color:var(--fg); cursor:pointer;
+    background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+    padding:11px 16px; transition:.12s;
+  }
+  button:hover:not(:disabled){background:#2c3143; border-color:#3f465c}
+  button:disabled{opacity:.4; cursor:default}
+  #spinBtn{flex:1; background:linear-gradient(180deg,#2b8fd8,#1f6bb0); border-color:#1f6bb0; font-size:16px}
+  #spinBtn:hover:not(:disabled){background:linear-gradient(180deg,#369ae6,#2578c4)}
+
+  aside{display:flex; flex-direction:column; gap:14px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
+  .card h2{font-size:12px; color:var(--dim); margin:0 0 9px; font-weight:600; letter-spacing:.3px}
+  .deck{display:flex; flex-wrap:wrap; gap:5px; max-height:212px; overflow-y:auto}
+  .chip{
+    display:flex; align-items:center; gap:3px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:7px; padding:3px 6px; font-size:14px; cursor:default;
+  }
+  .chip i{font-style:normal; font-size:10px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .chip.pick{cursor:pointer}
+  .chip.pick:hover{border-color:var(--bad); background:#3a2430}
+  #log{font-size:11px; color:var(--dim); line-height:1.65; max-height:190px; overflow-y:auto; font-variant-numeric:tabular-nums}
+  #log .hl{color:var(--fg)}
+  #log .plus{color:var(--good)}
+  #log .minus{color:var(--bad)}
+
+  /* 오버레이 — 심볼 선택 / 정비 / 게임오버 */
+  #overlay{
+    position:fixed; inset:0; background:rgba(6,8,12,.85); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; padding:20px; z-index:50;
+    opacity:0; transition:opacity .2s ease;
+  }
+  #overlay.on{display:flex}
+  #overlay.show{opacity:1}
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:22px; max-width:660px; width:100%; text-align:center;
+    opacity:0; transform:translateY(22px) scale(.97);
+    transition:opacity .26s ease, transform .32s cubic-bezier(.2,.85,.3,1);
+  }
+  #overlay.show .modal{opacity:1; transform:none}
+  .modal h3{margin:0 0 4px; font-size:19px}
+  .modal p.sub{margin:0 0 18px; font-size:12px; color:var(--dim)}
+  .picks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap}
+  .pickcard{
+    width:180px; background:var(--panel2); border:2px solid var(--line); border-radius:12px;
+    padding:16px 12px; cursor:pointer; text-align:center;
+    opacity:0; animation:riseIn .44s cubic-bezier(.2,.85,.3,1) forwards;
+  }
+  /* 카드가 riseIn 애니메이션으로 transform을 잡고 있어서, hover는 transform 말고
+     테두리·그림자로 표현함 (애니메이션이 인라인 transform보다 우선순위가 높음) */
+  .pickcard:hover{background:#2c3143; box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  @keyframes riseIn{ from{opacity:0; transform:translateY(26px)} to{opacity:1; transform:none} }
+  .pickcard .emo{font-size:40px; line-height:1.2}
+  .pickcard .nm{font-weight:700; margin-top:4px}
+  .pickcard .rar{font-size:10px; margin:3px 0 7px}
+  .pickcard .ds{font-size:11px; color:var(--dim); line-height:1.5; min-height:48px}
+  .pickcard .bs{font-size:11px; color:var(--o2); margin-top:6px; font-weight:600}
+  .modal .foot{margin-top:16px; display:flex; gap:10px; justify-content:center}
+
+  /* 툴팁 */
+  #tip{
+    position:fixed; z-index:60; pointer-events:none; display:none;
+    background:#080a10; border:1px solid var(--line); border-radius:9px;
+    padding:8px 10px; font-size:12px; max-width:230px; line-height:1.5;
+    box-shadow:0 6px 20px rgba(0,0,0,.55);
+  }
+  #tip b{display:block; margin-bottom:2px}
+  #tip .ds{color:var(--dim); font-size:11px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="titlebar">
+      <h1>우주탐험<small>slot roguelike v0.1</small></h1>
+      <div class="spacer"></div>
+      <div class="mini"><span>점수</span><b id="sScore">0</b></div>
+      <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
+      <button id="muteBtn" title="소리 켜기/끄기">🔊</button>
+    </div>
+    <div class="hud">
+      <div class="tile o2" id="tileO2"><span>보유 산소</span><b id="sCoins">0</b></div>
+      <div class="tile"><span>구역</span><b id="sRound">1</b></div>
+      <div class="tile cost"><span>구역 통과 시 소모</span><b id="sRent">25</b></div>
+      <div class="tile"><span>남은 스핀</span><b id="sSpins">5</b><div class="dots" id="sDots"></div></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="board">
+      <canvas id="reel" width="544" height="440"></canvas>
+      <div class="actions">
+        <button id="spinBtn">돌리기 (Space)</button>
+        <button id="resetBtn">새 항해</button>
+      </div>
+    </div>
+    <aside>
+      <div class="card">
+        <h2>화물칸 <span id="deckCount"></span></h2>
+        <div class="deck" id="deck"></div>
+      </div>
+      <div class="card">
+        <h2>항해일지</h2>
+        <div id="log"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="overlay"></div>
+<div id="tip"></div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   우주탐험 — 슬롯머신 로그라이크
+   ─ 슬롯을 굴려 나온 심볼(elements)의 시너지로 산소를 만들고,
+     구역이 끝날 때 생명유지장치가 산소를 먹는다. 못 대면 표류.
+     얼마나 멀리 갔나 = 기록.
+   ─ 심볼은 전부 SYMBOLS 테이블 하나에 몰아넣음. 새 심볼 추가는
+     여기 항목 하나 붙이는 걸로 끝나게 설계함 (effect 훅만 쓰면 됨).
+   변경내역
+     v0.1  격자 4x5, 흔함 등급 10종만 우선 투입 (나머지 등급은 논의 중)
+   이슈 사항 (일부러 안 넣은 것)
+     ─ 아이템/유물: 심볼만으로 밸런스 잡아보고 나중에 추가
+     ─ 서버 랭킹: 기록은 localStorage에만. 백엔드 붙이는 건 범위 밖
+   ══════════════════════════════════════════════════════════════════ */
+
+// ══════════════════════════════════ 설정
+const COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
+const CELL = 96, GAP = 8, PAD = 8;
+const LARVA_HATCH = 4;   // 외계 알이 부화하기까지 등장해야 하는 횟수
+
+const RARITY = {
+  common:   { label:'흔함', weight:60, color:'var(--common)' },
+  uncommon: { label:'보통', weight:27, color:'var(--uncommon)' },
+  rare:     { label:'희귀', weight:10, color:'var(--rare)' },
+  legend:   { label:'전설', weight:3,  color:'var(--legend)' },
+};
+
+// 구역별 생명유지 소모량. 12구역 넘어가면 1.3배씩
+const COSTS = [25, 50, 100, 175, 275, 400, 600, 850, 1150, 1500, 1950, 2500];
+const costFor  = r => r <= COSTS.length
+  ? COSTS[r-1]
+  : Math.round(COSTS[COSTS.length-1] * Math.pow(1.3, r - COSTS.length));
+// 스핀 수는 2구역마다 하나씩 늘려주되 10에서 멈춤
+const spinsFor = r => Math.min(5 + Math.floor((r-1)/2), 10);
+
+// ══════════════════════════════════ 심볼 테이블
+/*
+  effect(c) 안에서 쓸 수 있는 것들:
+    c.self            지금 칸
+    c.adj(...ids)     인접 8칸 중 살아있는 심볼 (id 주면 필터)
+    c.all(...ids)     판 전체
+    c.row() / c.col() 같은 행/열 (자기 제외)
+    c.emptyAdj()      인접한 빈칸 개수
+    c.addSelf(n)      자기 값 증가
+    c.add(cell, n)    남의 값 증가
+    c.mul(cell, m)    남의 값 배수
+    c.kill(cell)      파괴 — 값 0 + 화물칸에서 영구 제거
+    c.morph(cell,id)  다른 심볼로 변신
+    c.gain(n)         칸과 무관하게 산소 직접 획득
+    c.deckAdd(id)     화물칸에 심볼 추가
+    c.rand()          0~1 난수
+    c.note(msg)       항해일지에 한 줄
+  실행은 왼쪽 위부터 순서대로. 그래서 "먼저 죽으면 효과 못 씀"이 성립함
+
+  ※ 지금은 흔함 등급만 확정. 보통/희귀/전설은 논의하면서 아래에 붙일 예정
+*/
+const SYMBOLS = {
+  // ─────────── 흔함
+  o2:{ e:'🫧', n:'산소방울', base:1, r:'common', d:'그냥 1. 하지만 뭉치면 산소통이 된다' },
+
+  ration:{ e:'🥫', n:'식량', base:1, r:'common', d:'인접한 💧 정제수 1개당 +2',
+    effect(c){ const k=c.adj('water').length; if(k) c.addSelf(2*k); } },
+
+  water:{ e:'💧', n:'정제수', base:1, r:'common', d:'인접한 🥫 식량 · 🧑‍🚀 승무원 1개당 +1',
+    effect(c){ const k=c.adj('ration','crew').length; if(k) c.addSelf(k); } },
+
+  part:{ e:'⚙️', n:'예비 부품', base:2, r:'common', d:'인접한 🤖 정비로봇이 써버림 (자신 파괴, 로봇 +6)',
+    effect(c){ const bot=c.adj('bot')[0]; if(bot){ c.add(bot,6); c.kill(c.self); } } },
+
+  oil:{ e:'🛢️', n:'윤활유', base:1, r:'common', d:'인접한 🤖 정비로봇 1개당 +2',
+    effect(c){ const k=c.adj('bot').length; if(k) c.addSelf(2*k); } },
+
+  hydro:{ e:'🌱', n:'수경재배', base:1, r:'common', d:'💧 정제수와 인접하면 영구히 +1 (한 턴에 1까지, 최대치 없음)',
+    baseOf(en){ return 1 + (en.mem.grow||0); },
+    badge(en){ return en.mem.grow ? '+' + en.mem.grow : null; },
+    // 물이 여러 개 붙어도 한 턴에 1만 자람 — 물 도배로 폭주하는 걸 막으려고 이렇게 함
+    effect(c){ if(c.adj('water').length) c.self.entry.mem.grow = (c.self.entry.mem.grow||0) + 1; } },
+
+  duct:{ e:'🌬️', n:'환기구', base:1, r:'common', d:'좌우로 끊김 없이 이어진 심볼 1개당 +1 (빈칸에서 끊김)',
+    effect(c){ const chain=chainCells(c.self); chain.forEach(c.link); if(chain.length) c.addSelf(chain.length); } },
+
+  solar:{ e:'☀️', n:'태양광 패널', base:1, r:'common', d:'인접한 심볼이 서로 전부 다르면 +5',
+    effect(c){ const a=c.adj(); if(!a.length) return;
+      const ids=new Set(a.map(o=>o.entry.id));
+      if(ids.size===a.length) c.addSelf(5); } },
+
+  coil:{ e:'🧲', n:'자기 코일', base:1, r:'common', d:'인접한 🧲 자기 코일 1개당 +2',
+    effect(c){ const k=c.adj('coil').length; if(k) c.addSelf(2*k); } },
+
+  larva:{ e:'🥚', n:'외계 알', base:1, r:'common', d:'4번 등장하면 👾 외계생명으로 부화',
+    badge(en){ return (LARVA_HATCH - (en.mem.age||0)) + '회'; },
+    effect(c){ const en=c.self.entry; en.mem.age=(en.mem.age||0)+1;
+      if(en.mem.age>=LARVA_HATCH){ c.morph(c.self,'alien'); c.note('🥚 부화했다'); } } },
+
+  // ─────────── 부화로만 나오는 놈 (뽑기 목록엔 안 뜸)
+  alien:{ e:'👾', n:'외계생명', base:3, r:'uncommon', noOffer:true, d:'기본 3. 알에서 깨어난 뒤의 모습' },
+};
+
+/* 같은 행에서 자기 기준 좌우로 빈칸 없이 이어진 칸들 (자기 제외).
+   빈칸을 만나면 거기서 끊김 — 덕트가 이어진 만큼만 공기가 흐른다는 그림 */
+function chainCells(cell){
+  const row = game.cells.filter(o => o.r === cell.r).sort((a,b) => a.c - b.c);
+  const out = [];
+  for (let i = cell.c - 1; i >= 0 && row[i].entry; i--) out.push(row[i]);
+  for (let i = cell.c + 1; i < COLS && row[i].entry; i++) out.push(row[i]);
+  return out;
+}
+
+const START_DECK = ['o2','o2','o2','ration','ration','water','water','hydro','duct','solar'];
+
+// ══════════════════════════════════ 유틸
+const $  = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function baseOf(entry){ const d=SYMBOLS[entry.id]; return d.baseOf ? d.baseOf(entry) : d.base; }
+
+let uidSeq = 0;
+function mkEntry(id){ return { uid: ++uidSeq, id, mem:{} }; }
+
+// ══════════════════════════════════ 게임 상태
+let game = null;
+let busy = false;
+// 릴 연출 상태. active면 draw()가 열 단위로 스크롤 그림을 대신 그림
+const reel = { active:false, cols:[] };
+// 화면에 보여줄 O₂ 값. 실제 값으로 스르륵 따라감 (숫자가 촤르륵 올라가는 맛)
+const disp = { coins:0, lock:false };
+
+/* 전광판처럼 숫자가 주르륵 떨어지는 카운트다운.
+   감속을 주면 "정산했다"가 아니라 "슬슬 줄어든다"로 보여서 일부러 선형으로 감 */
+function drainNumber(from, to, ms){
+  return new Promise(res => {
+    disp.lock = true;
+    const t0 = performance.now();
+    let lastTick = 0;
+    (function step(now){
+      const p = Math.min((now - t0) / ms, 1);
+      disp.coins = from + (to - from) * p;
+      renderStats();
+      if (now - lastTick > 40){ lastTick = now; beep(1150, .014, 'square', .022); }
+      if (p < 1) requestAnimationFrame(step);
+      else { disp.coins = to; disp.lock = false; renderStats(); res(); }
+    })(t0);
+  });
+}
+
+// ══════════════════════════════════ 소리
+/* 오실레이터 하나로 끝내는 최소 구현. 슬롯은 소리가 절반이라 안 넣을 수가 없음.
+   AudioContext는 첫 클릭(스핀 버튼) 안에서 만들어져서 자동재생 정책에 안 걸림 */
+let actx = null, muted = false;
+function beep(freq, dur, type, gain){
+  if (muted) return;
+  try{
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || .04, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch(err){ muted = true; }   // 오디오 못 쓰는 환경이면 조용히 포기
+}
+
+// ══════════════════════════════════ 잔상 티커
+/* 칸 반짝임(flash)과 O₂ 카운트업을 굴리는 공용 루프.
+   깜빡일 게 남아있는 동안만 돌고 알아서 멈춤 */
+let ticker = 0;
+function startTicker(){
+  if (ticker) return;
+  ticker = requestAnimationFrame(function step(){
+    let alive = false;
+    if (!disp.lock){                       // 정산 카운트다운이 굴러가는 중엔 손 안 댐
+      const gap = game.coins - disp.coins;
+      if (Math.abs(gap) > 0.5){ disp.coins += gap * 0.18; alive = true; }
+      else disp.coins = game.coins;
+    }
+
+    draw(); renderStats();
+    ticker = alive ? requestAnimationFrame(step) : 0;
+  });
+}
+
+function newGame(){
+  game = {
+    round: 1,
+    coins: 0,
+    spinsLeft: spinsFor(1),
+    cost: costFor(1),
+    paidTotal: 0,
+    deck: START_DECK.map(mkEntry),
+    cells: Array.from({length:CELLS}, (_,i)=>({ entry:null, i, r:(i/COLS)|0, c:i%COLS, val:0, dead:false, show:false, flash:0, links:[] })),
+    over: false,
+    log: [],
+  };
+  disp.coins = 0;
+  pushLog('<span class="hl">1구역 진입.</span> 생명유지 소모 ' + game.cost + ' O₂');
+  render();
+}
+
+function score(){ return game.paidTotal + game.coins; }
+function best(){ return Number(localStorage.getItem('oxy.best') || 0); }
+
+// ══════════════════════════════════ 스핀 판정
+/* 화물칸에서 20개를 비복원으로 뽑아 칸에 앉힘. 20보다 적으면 나머진 빈칸.
+   앉을 자리도 섞음 — 순서대로 넣으면 화물이 적을 때 위쪽 행에만 몰려서
+   태양광·환기구처럼 자리를 보는 심볼이 아예 성립을 안 함 */
+function fillCells(){
+  const pool = shuffle(game.deck.slice()).slice(0, CELLS);
+  const seats = shuffle(game.cells.map((_, i) => i));
+  for (const cell of game.cells){
+    cell.entry = null; cell.val = 0; cell.dead = false; cell.show = false; cell.flash = 0; cell.links = [];
+  }
+  pool.forEach((en, k) => {
+    const cell = game.cells[seats[k]];
+    cell.entry = en;
+    cell.val   = baseOf(en);
+  });
+}
+
+/* 효과 실행. 칸마다 ctx를 만들어 넘김 — 심볼 쪽 코드는 이 ctx만 알면 됨 */
+function resolve(){
+  const cells = game.cells;
+  const extra = { coins:0, notes:[] };
+  const alive = cell => cell.entry && !cell.dead;
+
+  const adjacent = cell => cells.filter(o =>
+    o !== cell && Math.abs(o.r-cell.r) <= 1 && Math.abs(o.c-cell.c) <= 1);
+
+  const filt = (list, ids) => list.filter(o =>
+    alive(o) && (ids.length === 0 || ids.includes(o.entry.id)));
+
+  for (const cell of cells){
+    if (!alive(cell)) continue;
+    const def = SYMBOLS[cell.entry.id];
+    if (!def || !def.effect) continue;
+
+    /* 이 칸이 어떤 칸을 쳐다봤는지 기록해둠. 나중에 점수를 순서대로 보여줄 때
+       "얘 때문에 이만큼" 이 눈에 보이게 같이 빛내주려고 */
+    const link = t => { if (t && t !== cell && !cell.links.includes(t)) cell.links.push(t); };
+    const seen = list => { list.forEach(link); return list; };
+
+    def.effect({
+      self: cell,
+      adj:  (...ids) => seen(filt(adjacent(cell), ids)),
+      all:  (...ids) => seen(filt(cells.filter(o=>o!==cell), ids)),
+      row:  (...ids) => seen(filt(cells.filter(o=>o!==cell && o.r===cell.r), ids)),
+      col:  (...ids) => seen(filt(cells.filter(o=>o!==cell && o.c===cell.c), ids)),
+      emptyAdj: () => adjacent(cell).filter(o=>!o.entry).length,
+      link,                       // 직접 고른 칸을 연출용으로 묶고 싶을 때
+      addSelf: n => { cell.val += n; },
+      add:  (t,n) => { link(t); t.val += n; },
+      mul:  (t,m) => { link(t); t.val *= m; },
+      kill: t => { link(t); t.dead = true; t.val = 0; removeFromDeck(t.entry); },
+      // 아직 정의 안 된 심볼로는 변신 안 함 — 등급 추가하다 반쯤 만든 상태에서 터지는 것 방지
+      morph:(t,id) => { if(!SYMBOLS[id]) return; t.entry.id = id; t.entry.mem = {}; t.val = baseOf(t.entry); },
+      gain: n => { extra.coins += n; },
+      deckAdd: id => { if(SYMBOLS[id]) game.deck.push(mkEntry(id)); },
+      rand: Math.random,
+      note: msg => extra.notes.push(msg),
+    });
+  }
+
+  let total = extra.coins;
+  for (const cell of cells) if (alive(cell)) total += cell.val;
+  return { total, notes: extra.notes };
+}
+
+function removeFromDeck(entry){
+  const i = game.deck.findIndex(x => x.uid === entry.uid);
+  if (i >= 0) game.deck.splice(i, 1);
+}
+
+// ══════════════════════════════════ 한 스핀 진행
+async function spin(){
+  if (busy || game.over || game.spinsLeft <= 0) return;
+  busy = true; render();
+
+  // 결과를 먼저 확정해두고 릴을 돌림. 열이 멈추는 순간 진짜 결과가 드러남
+  fillCells();
+  await rollReels();
+  await sleep(140);
+
+  const coinsBefore = game.coins;
+  const { total, notes } = resolve();
+
+  /* 왼쪽 위부터 하나씩 밝히면서 O₂를 쌓아 올림.
+     값이 붙은 칸에서만 뜸을 들이고, 0짜리는 빠르게 넘김 — 안 그러면
+     빈 칸 세느라 늘어지기만 하고 정작 시너지가 눈에 안 들어옴 */
+  const lightsOff = () => { for (const c of game.cells) c.flash = 0; };
+  /* 지금 계산 중인 칸만 세게, 그 칸이 참조한 심볼들은 은은하게 켬.
+     다음 칸으로 넘어갈 땐 전부 껐다가 다시 켜서 한 번에 하나만 보이게 함 */
+  const spotlight = cell => {
+    lightsOff();
+    cell.flash = 1;
+    for (const l of cell.links) if (l.entry) l.flash = 0.55;
+  };
+
+  let acc = 0, idx = 0;
+  for (const cell of game.cells){
+    if (!cell.entry) continue;
+    cell.show = true;
+
+    if (cell.dead){
+      spotlight(cell); draw();
+      beep(140, .16, 'triangle', .06);
+      await sleep(320);
+      continue;
+    }
+    if (cell.val === 0){ lightsOff(); draw(); await sleep(45); continue; }
+
+    spotlight(cell); draw();
+    acc += cell.val;
+    game.coins = Math.max(0, coinsBefore + acc);
+    startTicker();
+    // 칸을 하나씩 먹을수록 음이 올라감 — 연달아 터질 때 쾌감이 붙음
+    beep(430 * Math.pow(1.05, Math.min(idx, 26)), .07, 'sine', .045);
+    idx++;
+    await sleep(340);
+  }
+
+  lightsOff();
+  game.cells.forEach(c => c.show = true);
+  game.coins = Math.max(0, coinsBefore + total);
+  startTicker();
+  game.spinsLeft--;
+
+  const sign = total >= 0 ? 'plus' : 'minus';
+  pushLog(`${game.round}구역 · <span class="${sign}">${total>=0?'+':''}${total} O₂</span>`);
+  notes.forEach(pushLog);
+  render();
+  await sleep(260);
+
+  if (game.spinsLeft > 0){
+    await offerSymbols();
+  } else {
+    await settleLifeSupport();
+  }
+  busy = false; render();
+}
+
+// ══════════════════════════════════ 심볼 획득 (매 스핀 후)
+function rollChoices(n){
+  const pool = [];
+  for (const id in SYMBOLS){
+    if (SYMBOLS[id].noOffer) continue;   // 부화·변신으로만 얻는 심볼은 뽑기에서 제외
+    const w = RARITY[SYMBOLS[id].r].weight;
+    for (let i=0;i<w;i++) pool.push(id);
+  }
+  const out = [];
+  let guard = 0;
+  while (out.length < n && pool.length && guard++ < 500){
+    const id = pool[(Math.random()*pool.length)|0];
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function offerSymbols(){
+  const picks = rollChoices(3);
+  return modal({
+    title: '무엇을 실을까',
+    sub: '고른 심볼이 화물칸에 들어간다. 마음에 안 들면 넘겨도 됨',
+    body: `<div class="picks">${picks.map((id,i)=>{
+      const s = SYMBOLS[id], rar = RARITY[s.r];
+      return `<div class="pickcard" data-i="${i}" style="border-color:${rar.color};animation-delay:${90+i*90}ms">
+        <div class="emo">${s.e}</div>
+        <div class="nm">${s.n}</div>
+        <div class="rar" style="color:${rar.color}">${rar.label}</div>
+        <div class="ds">${s.d}</div>
+        <div class="bs">기본 ${s.base} O₂</div>
+      </div>`;
+    }).join('')}</div>`,
+    buttons: [{ label:'건너뛰기', value:-1 }],
+    onPick: el => el.closest('.pickcard') ? +el.closest('.pickcard').dataset.i : null,
+  }).then(v => {
+    if (v >= 0){
+      game.deck.push(mkEntry(picks[v]));
+      pushLog(`${SYMBOLS[picks[v]].e} ${SYMBOLS[picks[v]].n} 적재`);
+    }
+    render();
+  });
+}
+
+// ══════════════════════════════════ 생명유지 정산
+async function settleLifeSupport(){
+  // 소모량을 깎아주는 심볼은 화물칸 전체를 훑어서 적용 (costCut 필드)
+  let cut = 0;
+  for (const en of game.deck){
+    const d = SYMBOLS[en.id];
+    if (d && d.costCut) cut += d.costCut;
+  }
+  const due = Math.max(0, game.cost - cut);
+  if (cut) pushLog(`소모량 ${cut} O₂ 절감`);
+
+  const ok = game.coins >= due;
+  await drainModal(due, ok);
+
+  if (!ok){
+    game.over = true;
+    pushLog(`<span class="minus">${due} O₂를 대지 못했다. 표류.</span>`);
+    render();
+    await gameOver();
+    return;
+  }
+
+  game.paidTotal += due;
+  pushLog(`<span class="hl">${game.round}구역 통과 · ${due} O₂ 소모</span> (잔량 ${game.coins})`);
+  render();
+
+  await maintenance();
+
+  game.round++;
+  game.cost = costFor(game.round);
+  game.spinsLeft = spinsFor(game.round);
+  pushLog(`<span class="hl">${game.round}구역 진입.</span> 소모 ${game.cost} O₂ / 스핀 ${game.spinsLeft}회`);
+  render();
+}
+
+/* 산소가 빠져나가는 장면. 그냥 숫자만 줄이면 언제 깎였는지 아무도 모름 —
+   모달로 세우고, HUD를 흔들고, 잔량을 실시간으로 깎아내려서 보여줌 */
+function drainModal(due, ok){
+  const before = game.coins;
+  return modal({
+    title: ok ? '생명유지 정산' : '산소 고갈',
+    sub: ok
+      ? `${game.round}구역을 지나며 생명유지장치가 산소를 가져간다`
+      : `${due} O₂가 필요한데 ${before}밖에 없다`,
+    body: `<div class="drain">
+        <div class="dn"><span>보유</span><b>${before}</b></div>
+        <div class="dop">−</div>
+        <div class="dn bad"><span>소모</span><b>${due}</b></div>
+        <div class="dop">=</div>
+        <div class="dn ${ok ? 'good' : 'bad'}"><span>잔량</span>
+          <b id="${ok ? 'dTo' : 'dNo'}">${ok ? before : '부족'}</b></div>
+      </div>`,
+    buttons: [{ label: ok ? '계속' : '항해 종료', value:1 }],
+    onPick: () => null,
+    onOpen: () => {
+      if (!ok){ beep(180,.5,'sawtooth',.06); setTimeout(()=>beep(120,.7,'sawtooth',.06), 220); return; }
+      document.body.classList.add('draining');
+      game.coins = before - due;
+      // 깎이는 양이 클수록 조금 더 오래 굴림 (최대 1.6초)
+      const ms = Math.min(1600, 550 + due * 3.5);
+      drainNumber(before, game.coins, ms).then(() => {
+        document.body.classList.remove('draining');
+        beep(300, .18, 'triangle', .06);
+        render();
+      });
+    },
+  });
+}
+
+/* 정비 — 화물칸에서 한 장 버리기. 짐 덜어내는 축을 열어두려고 넣은 단계 */
+function maintenance(){
+  const counts = deckCounts();
+  return modal({
+    title: '정비',
+    sub: '화물칸에서 심볼 하나를 버릴 수 있다 (한 장만)',
+    body: `<div class="deck" style="justify-content:center;max-height:none">${
+      counts.map(([id,k]) => `<div class="chip pick" data-id="${id}">${SYMBOLS[id].e}<i>${k}</i></div>`).join('')
+    }</div>`,
+    buttons: [{ label:'그냥 두기', value:null }],
+    onPick: el => el.closest('.chip') ? el.closest('.chip').dataset.id : null,
+  }).then(id => {
+    if (id){
+      const i = game.deck.findIndex(x => x.id === id);
+      if (i >= 0){ game.deck.splice(i,1); pushLog(`${SYMBOLS[id].e} ${SYMBOLS[id].n} 투기`); }
+    }
+    render();
+  });
+}
+
+async function gameOver(){
+  const s = score(), b = best();
+  const isNew = s > b;
+  if (isNew) localStorage.setItem('oxy.best', String(s));
+  await modal({
+    title: isNew ? '🎉 신기록!' : '표류',
+    sub: `${game.round}구역까지 항해 · 점수 ${s}점` + (isNew ? '' : ` · 최고기록 ${b}점`),
+    body: `<div style="font-size:13px;color:var(--dim);line-height:1.8">
+      누적 소모 ${game.paidTotal} O₂<br>남은 O₂ ${game.coins}<br>화물칸 ${game.deck.length}장</div>`,
+    buttons: [{ label:'다시 출항', value:1 }],
+    onPick: () => null,
+  });
+  newGame();
+}
+
+// ══════════════════════════════════ 모달
+function modal({ title, sub, body, buttons, onPick, onOpen }){
+  return new Promise(resolve => {
+    const ov = $('#overlay');
+    ov.innerHTML = `<div class="modal">
+      <h3>${title}</h3><p class="sub">${sub}</p>${body}
+      <div class="foot">${buttons.map((b,i)=>`<button data-b="${i}">${b.label}</button>`).join('')}</div>
+    </div>`;
+    ov.classList.add('on');
+    requestAnimationFrame(() => { ov.classList.add('show'); if (onOpen) onOpen(); });   // 한 프레임 뒤에 켜야 트랜지션이 탐
+    ov.onclick = ev => {
+      const btn = ev.target.closest('button[data-b]');
+      if (btn){ done(buttons[+btn.dataset.b].value); return; }
+      const picked = onPick(ev.target);
+      if (picked !== null && picked !== undefined) done(picked);
+    };
+    function done(v){
+      ov.classList.remove('show');
+      ov.onclick = null;
+      setTimeout(() => { ov.classList.remove('on'); ov.innerHTML = ''; }, 200);
+      resolve(v);
+    }
+  });
+}
+
+// ══════════════════════════════════ 그리기
+const cv = $('#reel'), cx = cv.getContext('2d');
+(function setupCanvas(){
+  const w = COLS*CELL + (COLS+1)*GAP + PAD*2;
+  const h = ROWS*CELL + (ROWS+1)*GAP + PAD*2;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = w*dpr; cv.height = h*dpr;
+  cv.style.aspectRatio = `${w} / ${h}`;
+  cx.scale(dpr, dpr);
+  cv._w = w; cv._h = h;
+})();
+
+function cellRect(cell){
+  return {
+    x: PAD + GAP + cell.c*(CELL+GAP),
+    y: PAD + GAP + cell.r*(CELL+GAP),
+    w: CELL, h: CELL,
+  };
+}
+
+function roundRect(x,y,w,h,r){
+  cx.beginPath();
+  cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
+  cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
+}
+
+function draw(){
+  cx.clearRect(0,0,cv._w,cv._h);
+  cx.fillStyle = '#11141d';
+  roundRect(PAD/2, PAD/2, cv._w-PAD, cv._h-PAD, 12); cx.fill();
+
+  // 열 단위로 그림. 아직 도는 열은 스크롤 스트립, 멈춘 열은 실제 결과
+  for (let c = 0; c < COLS; c++){
+    const col = reel.active ? reel.cols[c] : null;
+    if (col && !col.stopped){ drawReelCol(c, col); continue; }
+    const yOff = col ? col.bounce : 0;
+    for (let r = 0; r < ROWS; r++) drawCell(game.cells[r*COLS + c], yOff);
+  }
+}
+
+function drawCell(cell, yOff){
+  const R = cellRect(cell);
+  R.y += yOff || 0;
+
+  cx.fillStyle = cell.entry ? '#1f2432' : '#161a24';
+  roundRect(R.x,R.y,R.w,R.h,10); cx.fill();
+  cx.strokeStyle = '#2b3142'; cx.lineWidth = 1;
+  roundRect(R.x+.5,R.y+.5,R.w-1,R.h-1,10); cx.stroke();
+
+  if (!cell.entry) return;
+  const def = SYMBOLS[cell.entry.id];
+  if (!def) return;
+
+  // 점수 계산 중 이 칸이 관여하면 잠깐 테두리가 달아오름
+  const f = cell.flash || 0;
+  if (f > 0){
+    const hot = cell.val < 0 || cell.dead ? '255,107,107' : '95,211,255';
+    cx.save();
+    cx.fillStyle = `rgba(${hot},${.14*f})`;
+    roundRect(R.x,R.y,R.w,R.h,10); cx.fill();
+    cx.shadowColor = `rgba(${hot},${.9*f})`; cx.shadowBlur = 20*f;
+    cx.strokeStyle = `rgba(${hot},${.95*f})`; cx.lineWidth = 2;
+    roundRect(R.x+1,R.y+1,R.w-2,R.h-2,10); cx.stroke();
+    cx.restore();
+  }
+
+  cx.globalAlpha = cell.dead ? .22 : 1;
+  cx.font = (46 + 7*f).toFixed(1) + 'px "Apple Color Emoji","Segoe UI Emoji",sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(def.e, R.x+R.w/2, R.y+R.h/2 - 4);
+  cx.globalAlpha = 1;
+
+  // 턴을 세는 심볼(외계 알)이나 누적치가 있는 심볼(수경재배)은 좌상단에 표시
+  const bg = def.badge && def.badge(cell.entry);
+  if (bg && !cell.dead){
+    cx.font = '700 11px system-ui,sans-serif';
+    cx.textAlign = 'left'; cx.textBaseline = 'top';
+    const bw = cx.measureText(bg).width + 9;
+    cx.fillStyle = 'rgba(255,176,32,.2)';
+    roundRect(R.x+5, R.y+5, bw, 16, 5); cx.fill();
+    cx.fillStyle = '#ffb020';
+    cx.fillText(bg, R.x+9, R.y+8);
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  }
+
+  if (cell.dead){
+    cx.font = '30px sans-serif';
+    cx.fillText('💥', R.x+R.w/2, R.y+R.h/2 - 4);
+  } else if (cell.show && cell.val !== 0){
+    const txt = (cell.val > 0 ? '+' : '') + cell.val;
+    cx.font = '700 15px system-ui,sans-serif';
+    const w = cx.measureText(txt).width + 12;
+    cx.fillStyle = cell.val > 0 ? 'rgba(95,211,255,.16)' : 'rgba(255,107,107,.16)';
+    roundRect(R.x+R.w/2-w/2, R.y+R.h-27, w, 20, 6); cx.fill();
+    cx.fillStyle = cell.val > 0 ? '#5fd3ff' : '#ff6b6b';
+    cx.fillText(txt, R.x+R.w/2, R.y+R.h-17);
+  }
+}
+
+/* 도는 중인 열 하나. 칸 경계 없이 통짜 창으로 그려야 릴처럼 이어져 보임 */
+function drawReelCol(c, col){
+  const step = CELL + GAP;
+  const x  = PAD + GAP + c*step;
+  const y0 = PAD + GAP;
+  const h  = ROWS*CELL + (ROWS-1)*GAP;
+
+  cx.fillStyle = '#1b2030';
+  roundRect(x, y0, CELL, h, 10); cx.fill();
+
+  cx.save();
+  roundRect(x, y0, CELL, h, 10); cx.clip();
+  cx.font = '46px "Apple Color Emoji","Segoe UI Emoji",sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  // 같은 그림을 위아래로 살짝 어긋나게 겹쳐 찍어서 모션 블러 흉내
+  const ghosts = [[0,.85],[-9,.3],[9,.3],[-18,.12],[18,.12]];
+  for (const [dy, a] of ghosts){
+    cx.globalAlpha = a;
+    for (let k = -1; k <= ROWS; k++){
+      const id = col.strip[k+1];
+      if (!id) continue;
+      cx.fillText(SYMBOLS[id].e, x + CELL/2, y0 + k*step + col.offset + CELL/2 - 4 + dy);
+    }
+  }
+  cx.globalAlpha = 1;
+
+  // 릴 창 위아래를 어둡게 — 실제 슬롯 릴통 안쪽 그림자
+  const grd = cx.createLinearGradient(0, y0, 0, y0+h);
+  grd.addColorStop(0,   'rgba(6,8,12,.85)');
+  grd.addColorStop(.22, 'rgba(6,8,12,0)');
+  grd.addColorStop(.78, 'rgba(6,8,12,0)');
+  grd.addColorStop(1,   'rgba(6,8,12,.85)');
+  cx.fillStyle = grd;
+  cx.fillRect(x, y0, CELL, h);
+  cx.restore();
+
+  cx.strokeStyle = '#2b3142'; cx.lineWidth = 1;
+  roundRect(x+.5, y0+.5, CELL-1, h-1, 10); cx.stroke();
+}
+
+/* 릴 굴리기. 열마다 조금씩 늦게 멈추고, 멈출 때 한 번 툭 튄다 */
+const SETTLE = 0.16;
+function rollReels(){
+  const step = CELL + GAP;
+  const ids = Object.keys(SYMBOLS);
+  const pick = () => ids[(Math.random()*ids.length)|0];
+
+  reel.cols = [];
+  for (let c = 0; c < COLS; c++){
+    reel.cols.push({
+      idx: c,
+      offset: 0,
+      speed: 2000 + Math.random()*300,
+      stopAt: 400 + c*130,
+      stopped: false,
+      settle: 0,
+      bounce: 0,
+      strip: Array.from({length: ROWS+2}, pick),
+    });
+  }
+  reel.active = true;
+
+  return new Promise(res => {
+    const t0 = performance.now();
+    let last = t0, lastTick = 0;
+    (function frame(now){
+      const dt = Math.min((now - last)/1000, .05); last = now;
+      const el = now - t0;
+      let running = false;
+
+      for (const col of reel.cols){
+        if (!col.stopped){
+          if (el >= col.stopAt){
+            col.stopped = true;
+            beep(190 + col.idx*30, .1, 'triangle', .07);   // 열이 물리는 소리
+          } else {
+            col.offset += col.speed*dt;
+            while (col.offset >= step){        // 한 칸 넘어가면 스트립을 한 칸 밀어줌
+              col.offset -= step;
+              col.strip.pop();
+              col.strip.unshift(pick());
+              if (col.idx === 0 && now - lastTick > 55){ lastTick = now; beep(900, .02, 'square', .02); }
+            }
+          }
+        }
+        if (col.stopped && col.settle < SETTLE){
+          col.settle += dt;
+          col.bounce = Math.sin(Math.min(col.settle/SETTLE, 1) * Math.PI) * 9;
+          running = true;
+        } else if (!col.stopped){
+          running = true;
+        } else {
+          col.bounce = 0;
+        }
+      }
+
+      draw();
+      if (running) requestAnimationFrame(frame);
+      else { reel.active = false; draw(); res(); }
+    })(t0);
+  });
+}
+
+// ══════════════════════════════════ DOM 갱신
+function deckCounts(){
+  const m = new Map();
+  for (const en of game.deck) m.set(en.id, (m.get(en.id)||0) + 1);
+  return [...m.entries()].sort((a,b) => b[1]-a[1]);
+}
+
+function pushLog(html){
+  game.log.unshift(html);
+  if (game.log.length > 40) game.log.pop();
+}
+
+/* 숫자만 갱신. 티커가 매 프레임 부르는 자리라 DOM 재생성은 여기 두면 안 됨 */
+function renderStats(){
+  $('#sCoins').textContent = Math.round(disp.coins);
+  $('#sRound').textContent = game.round;
+  $('#sRent').textContent  = game.cost;
+  $('#sSpins').textContent = game.spinsLeft;
+  $('#sScore').textContent = score();
+  $('#sBest').textContent  = best();
+
+  const total = spinsFor(game.round);
+  $('#sDots').innerHTML = Array.from({length: total},
+    (_, i) => `<i class="${i < game.spinsLeft ? 'on' : ''}"></i>`).join('');
+
+  const dTo = document.getElementById('dTo');      // 정산 모달이 떠 있으면 같이 굴려줌
+  if (dTo) dTo.textContent = Math.round(disp.coins);
+}
+
+function render(){
+  renderStats();
+  $('#spinBtn').disabled = busy || game.over || game.spinsLeft <= 0;
+
+  const counts = deckCounts();
+  $('#deckCount').textContent = `(${game.deck.length}장)`;
+  $('#deck').innerHTML = counts.map(([id,k]) =>
+    `<div class="chip" data-id="${id}">${SYMBOLS[id].e}<i>${k}</i></div>`).join('');
+  $('#log').innerHTML = game.log.map(l => `<div>${l}</div>`).join('');
+  draw();
+}
+
+// ══════════════════════════════════ 툴팁 (판 위 + 화물칸 목록 공용)
+const tip = $('#tip');
+function showTip(id, x, y){
+  const s = SYMBOLS[id]; if(!s) return;
+  const rar = RARITY[s.r];
+  tip.innerHTML = `<b>${s.e} ${s.n} <span style="color:${rar.color};font-size:10px">${rar.label}</span></b>
+    <div class="ds">${s.d}</div>
+    <div class="ds" style="color:var(--o2)">기본 ${s.base} O₂</div>`;
+  tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(x+14, innerWidth - r.width - 8) + 'px';
+  tip.style.top  = Math.min(y+14, innerHeight - r.height - 8) + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+
+cv.addEventListener('mousemove', ev => {
+  const b = cv.getBoundingClientRect();
+  const sx = cv._w / b.width, sy = cv._h / b.height;
+  const px = (ev.clientX - b.left) * sx, py = (ev.clientY - b.top) * sy;
+  const hit = game.cells.find(cell => {
+    const R = cellRect(cell);
+    return px >= R.x && px <= R.x+R.w && py >= R.y && py <= R.y+R.h;
+  });
+  if (hit && hit.entry) showTip(hit.entry.id, ev.clientX, ev.clientY);
+  else hideTip();
+});
+cv.addEventListener('mouseleave', hideTip);
+document.addEventListener('mouseover', ev => {
+  const chip = ev.target.closest('.chip');
+  if (chip) showTip(chip.dataset.id, ev.clientX, ev.clientY);
+});
+document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hideTip(); });
+
+// ══════════════════════════════════ 입력
+$('#spinBtn').onclick  = spin;
+$('#resetBtn').onclick = () => { if (!busy) newGame(); };
+$('#muteBtn').onclick  = ev => {
+  muted = !muted;
+  ev.currentTarget.textContent = muted ? '🔇' : '🔊';
+  if (!muted) beep(660, .06, 'sine', .04);
+};
+document.addEventListener('keydown', ev => {
+  if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) spin(); }
+});
+
+newGame();
+</script>
+</body>
+</html>
