@@ -411,6 +411,11 @@
   .rel i{font-style:normal; font-size:17px; line-height:1}
   .rel b{font-size:10px; font-weight:700; color:var(--legend); background:rgba(255,190,61,.14);
          border-radius:5px; padding:2px 5px}
+  /* 자기 자신을 가리키는 칸은 금테로 구분 */
+  .rel i.self{
+    border-radius:6px; padding:1px 3px;
+    background:rgba(255,190,61,.16); box-shadow:0 0 0 1px rgba(255,190,61,.45) inset;
+  }
   .rel.none{color:var(--dim); font-size:10px; min-height:0}
   #tip .rel{margin-top:6px; padding-top:6px; justify-content:flex-start; min-height:0}
   .modal .foot{margin-top:16px; display:flex; gap:10px; justify-content:center}
@@ -712,7 +717,10 @@ function relRow(id){
     return sc ? `<div class="rel"><b>${sc}</b></div>`
               : '<div class="rel none">단독으로 쓰는 심볼</div>';
   }
-  const self = r.selfRef ? '<b title="같은 심볼끼리 뭉칠수록 강해진다">🔁 조합</b>' : '';
+  // 자기끼리 뭉치는 심볼은 자기 이모지를 그대로 세워둠 (글자보다 이게 바로 읽힘)
+  const self = r.selfRef
+    ? `<i class="self" title="${SYMBOLS[id].n} — 같은 심볼끼리 뭉칠수록 강해진다">${SYMBOLS[id].e}</i>`
+    : '';
   const list = r.ids.map(x => `<i title="${SYMBOLS[x].n}">${SYMBOLS[x].e}</i>`).join('');
   return `<div class="rel">${self}${list}</div>`;
 }
