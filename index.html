@@ -110,14 +110,14 @@
   }
 
   main{display:grid; grid-template-columns:210px minmax(0,1fr) 300px; gap:14px; column-gap:20px; align-items:start}
-  @media (max-width:1180px){ main{grid-template-columns:176px minmax(0,1fr) 256px; gap:12px} .cabinet{margin-right:106px} }
+  @media (max-width:1180px){ main{grid-template-columns:172px minmax(0,1fr) 250px; gap:12px} .cabinet{margin-right:128px} }
   @media (max-width:980px){ main{grid-template-columns:1fr} .cabinet{margin-right:0} }
 
   /* ── 슬롯머신 캐비닛 ─────────────────────────────
      네온 튜브 외곽 + 아치형 간판 + 릴 창 + 콘솔 + 배출구.
      캔버스만 덩그러니 놓으면 판이 아니라 표처럼 보임 */
   .cabinet{
-    position:relative; margin-right:126px;  /* 레버 궤적만큼 차선 확보 — 팔 176px x sin55도 + 손잡이, 축은 안쪽으로 38px */
+    position:relative; margin-right:148px;  /* 레버 차선. 축은 캐비닛 바깥 20px, 팔 160px x sin50도 + 손잡이 25px */
     border-radius:64px 64px 20px 20px; padding:0 0 0;
     background:
       linear-gradient(180deg, rgba(120,74,220,.40), rgba(46,28,96,.72) 22%, rgba(18,14,44,.92)),
@@ -286,12 +286,12 @@
      수직으로만 미끄러지면 레버가 아니라 핀으로 보임.
      대신 움직임은 전부 "당기는 방향(+)"으로만 — 음수로도 흔들리면 딸랑거림 */
   .lever{
-    position:absolute; right:-10px; top:118px; width:96px; height:330px;
+    position:absolute; right:-68px; top:124px; width:96px; height:318px;
     cursor:pointer; user-select:none; z-index:5;
   }
   .lever .trail{                                  /* 노브가 지나갈 호 궤적 */
-    position:absolute; left:50%; bottom:46px; width:352px; height:352px;
-    margin-left:-176px; margin-bottom:-176px; border-radius:50%;
+    position:absolute; left:50%; bottom:46px; width:280px; height:280px;
+    margin-left:-140px; margin-bottom:-140px; border-radius:50%;
     border:2px dashed transparent;
     border-right-color:rgba(255,110,110,.26);
     pointer-events:none; transition:border-right-color .2s;
@@ -300,9 +300,9 @@
   .lever.pulled .trail{border-right-color:rgba(255,150,150,.9)}
 
   .lever .arm{                                    /* 축(맨 아래)을 원점으로 회전 */
-    position:absolute; left:50%; margin-left:-25px; bottom:46px; width:50px; height:176px;
+    position:absolute; left:50%; margin-left:-25px; bottom:46px; width:50px; height:160px;
     transform-origin:50% 100%;
-    transform:rotate(20deg);          /* 쉴 땐 오른쪽 위를 향해 비스듬히 */
+    transform:rotate(18deg);          /* 쉴 땐 오른쪽 위를 향해 비스듬히 */
     transition:transform .42s cubic-bezier(.18,1.7,.45,1);   /* 놓으면 튕겨 올라옴 */
     z-index:1;
   }
@@ -341,9 +341,9 @@
     font-size:10px; font-weight:700; letter-spacing:1.5px; color:#8f7fd0;
   }
 
-  .lever:hover:not(.off) .arm{transform:rotate(29deg)}
+  .lever:hover:not(.off) .arm{transform:rotate(28deg)}
   .lever.pulled .arm{
-    transform:rotate(55deg);
+    transform:rotate(50deg);
     transition:transform .1s cubic-bezier(.5,0,.9,.6);        /* 내려갈 땐 확 */
   }
 
@@ -352,16 +352,16 @@
   .lever.fresh .hint{color:#ff8a8a; animation:guideBlink 1.4s ease-in-out infinite}
   @keyframes guideBlink{ 0%,100%{opacity:.45} 45%{opacity:1} }
   @keyframes leverNudge{
-    0%,58%{transform:rotate(20deg)}
-    70%{transform:rotate(43deg)}
-    80%{transform:rotate(26deg)}
-    90%{transform:rotate(35deg)}
-    100%{transform:rotate(20deg)}
+    0%,58%{transform:rotate(18deg)}
+    70%{transform:rotate(40deg)}
+    80%{transform:rotate(24deg)}
+    90%{transform:rotate(33deg)}
+    100%{transform:rotate(18deg)}
   }
   .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
   /* 스핀 중엔 못 당기지만 사라지진 않게. opacity를 깎으면 없어진 걸로 보임 */
   .lever.off{pointer-events:none; filter:brightness(.72) saturate(.7)}
-  @media (max-width:1180px){ .lever{right:-6px; transform:scale(.82); transform-origin:top right} }
+  @media (max-width:1180px){ .lever{right:-58px; transform:scale(.84); transform-origin:top left} }
   @media (max-width:980px){ .lever{position:static; width:100%; height:170px; margin:0 auto 6px} }
 
   button{
