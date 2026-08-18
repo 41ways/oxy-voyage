@@ -432,6 +432,7 @@
     background:#39435c; box-shadow:0 16px 34px rgba(0,0,0,.55), 0 0 0 3px var(--o2);
   }
   .chip.pick.kb{border-color:var(--o2); background:#243a4a; box-shadow:0 0 0 2px rgba(111,220,255,.5)}
+  .foot button.kb{box-shadow:0 0 0 3px var(--o2); border-color:var(--o2)}
   @keyframes riseIn{ from{opacity:0; transform:translateY(26px)} to{opacity:1; transform:none} }
   .pickcard .emo{font-size:40px; line-height:1.2}
   .pickcard .nm{font-weight:700; margin-top:4px}
@@ -775,7 +776,7 @@ function offerSymbols(){
   const picks = rollChoices(PICK_COUNT, Math.random, game.round);
   return modal({
     title: '무엇을 실을까',
-    sub: '고른 심볼이 화물칸에 들어간다 &nbsp;·&nbsp; <kbd>←→</kbd> 이동 <kbd>Enter</kbd> 선택 <kbd>Space</kbd> 건너뛰기',
+    sub: '고른 심볼이 화물칸에 들어간다 &nbsp;·&nbsp; <kbd>←→</kbd> 이동 <kbd>Space</kbd> 선택 (건너뛰기도 골라서 <kbd>Space</kbd>)',
     body: `<div class="picks">${picks.map((id,i)=>{
       const s = SYMBOLS[id], rar = RARITY[s.r];
       return `<div class="pickcard" data-i="${i}" style="border-color:${rar.color};animation-delay:${Math.round((70+i*70)/speed)}ms;animation-duration:${Math.round(440/speed)}ms">
@@ -868,7 +869,7 @@ function maintenance(){
   const counts = deckCounts();
   return modal({
     title: '정비',
-    sub: '화물칸에서 심볼 하나를 버릴 수 있다 (한 장만) &nbsp;·&nbsp; <kbd>←→↑↓</kbd> 이동 <kbd>Enter</kbd> 버리기 <kbd>Space</kbd> 그냥 두기',
+    sub: '화물칸에서 심볼 하나를 버릴 수 있다 (한 장만) &nbsp;·&nbsp; <kbd>←→↑↓</kbd> 이동 <kbd>Space</kbd> 선택',
     body: `<div class="deck" style="justify-content:center;max-height:none">${
       counts.map(c => `<div class="chip pick" data-id="${c.id}" data-uid="${c.uid}">${SYMBOLS[c.id].e}${c.bg ? `<u>${c.bg}</u>` : ''}<i>${c.k}</i></div>`).join('')
     }</div>`,
@@ -925,8 +926,9 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
       el.addEventListener('animationend', () => el.classList.add('ready'), { once:true }));
 
     /* ── 키보드 조작. 마우스 없이도 한 판이 굴러가야 함
-       ← → ↑ ↓ 이동 · Enter 선택 · Space 건너뛰기(마지막 버튼) */
-    const items = [...ov.querySelectorAll('.pickcard, .chip.pick')];
+       ← → ↑ ↓ 이동 · Space 선택.
+       건너뛰기 버튼도 이동 대상에 넣어서, 고르는 것도 넘기는 것도 전부 Space 하나로 */
+    const items = [...ov.querySelectorAll('.pickcard, .chip.pick, .foot button')];
     let kb = items.length ? 0 : -1;
     const paint = () => items.forEach((el, i) => el.classList.toggle('kb', i === kb));
     paint();
@@ -957,17 +959,15 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
     };
 
     const onKey = ev => {
-      if (ev.code === 'Space'){                       // 건너뛰기 / 그냥 두기 / 계속
+      if (ev.code === 'Space'){                       // 지금 짚고 있는 걸 고른다
         ev.preventDefault(); ev.stopPropagation();
-        done(buttons[buttons.length-1].value); return;
-      }
-      if (ev.code === 'Enter' || ev.code === 'NumpadEnter'){
-        ev.preventDefault(); ev.stopPropagation();
-        if (kb >= 0){
-          const v = onPick(items[kb]);
-          if (v !== null && v !== undefined){ done(v); return; }
-        }
-        done(buttons[buttons.length-1].value); return;
+        if (kb < 0){ done(buttons[buttons.length-1].value); return; }
+        const el = items[kb];
+        const btn = el.matches('button[data-b]') ? el : null;
+        if (btn){ done(buttons[+btn.dataset.b].value); return; }
+        const v = onPick(el);
+        if (v !== null && v !== undefined){ done(v); return; }
+        return;
       }
       const dir = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' }[ev.key];
       if (dir){ ev.preventDefault(); ev.stopPropagation(); move(dir); }
@@ -1361,7 +1361,6 @@ $('#muteBtn').onclick  = ev => {
 };
 document.addEventListener('keydown', ev => {
   if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) pullLever(); }
-  if (ev.code === 'Enter' && !$('#overlay').classList.contains('on')) pullLever();
 });
 
 newGame();
