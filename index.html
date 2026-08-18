@@ -182,47 +182,70 @@
   @media (max-width:640px){ .console{flex-direction:column; align-items:stretch} .console .tray{display:none} }
 
 
-  /* 레버 — 축을 중심으로 호를 그리며 당겨진다.
-     핀이 위아래로 미끄러지면 레버가 아니라 슬라이더로 보임 */
+  /* 레버 — 곧게 아래로 내려갔다 튕겨 올라온다.
+     회전을 주면 옆으로 딸랑거리는 장식처럼 보여서 수직 이동만 씀.
+     대신 봉이 하우징 안으로 빨려 들어가게 해서 핀이 아니라 레버로 읽히게 함 */
   .lever{
     width:80px; position:relative; cursor:pointer; user-select:none; flex:none;
-    min-height:190px;
+    min-height:200px;
   }
-  /* 축이 박힌 받침 */
-  .lever .mount{
-    position:absolute; left:50%; margin-left:-15px; bottom:22px; width:30px; height:34px;
-    background:linear-gradient(180deg,#4d586f,#252d42); border:1px solid #5d6a86;
-    border-radius:8px 8px 4px 4px;
-    box-shadow:inset 0 2px 3px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.45);
+  .lever .rail{                                  /* 봉이 지나가는 홈 */
+    position:absolute; left:50%; margin-left:-11px; top:26px; bottom:52px; width:22px;
+    background:linear-gradient(90deg,#0d1220,#222c44 45%,#0d1220);
+    border:1px solid #3b455e; border-radius:11px;
+    box-shadow:inset 0 4px 10px rgba(0,0,0,.75);
   }
-  .lever .mount::after{        /* 회전축 */
-    content:''; position:absolute; left:50%; top:6px; margin-left:-6px;
-    width:12px; height:12px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #d7e0f0, #6d799a 70%);
-    box-shadow:inset 0 -1px 2px rgba(0,0,0,.5);
+  .lever .arm{                                   /* 움직이는 부분: 봉 + 손잡이 */
+    position:absolute; left:50%; margin-left:-19px; top:12px; width:38px; height:150px;
+    transition:transform .3s cubic-bezier(.3,1.5,.5,1); z-index:1;
   }
-  /* 팔: 받침의 축을 원점으로 회전 */
-  .lever .arm{
-    position:absolute; left:50%; margin-left:-5px; bottom:44px;
-    width:11px; height:84px; border-radius:6px;
-    background:linear-gradient(90deg,#5d6884,#e9f0fb 42%,#7b88a4 78%,#4e5871);
-    transform-origin:50% 100%;
-    transform:rotate(-4deg);
-    transition:transform .26s cubic-bezier(.34,1.5,.5,1);
-    box-shadow:0 2px 6px rgba(0,0,0,.4);
+  .lever .shaft{
+    position:absolute; left:50%; margin-left:-7px; top:26px; bottom:0; width:14px;
+    background:linear-gradient(90deg,#4c5670,#eef3fc 38%,#9aa7c2 62%,#454f68);
+    border-radius:7px; box-shadow:0 2px 6px rgba(0,0,0,.45);
   }
   .lever .knob{
-    position:absolute; left:50%; margin-left:-19px; top:-22px; width:38px; height:38px;
-    border-radius:50%;
-    background:radial-gradient(circle at 33% 27%, #ffb3b3, #e04b4b 52%, #8a1c1c);
-    box-shadow:0 5px 14px rgba(0,0,0,.55), inset 0 -4px 7px rgba(0,0,0,.35);
+    position:absolute; left:0; top:0; width:38px; height:38px; border-radius:50%;
+    background:radial-gradient(circle at 33% 27%, #ffb8b8, #e04b4b 50%, #7f1919);
+    box-shadow:0 6px 16px rgba(0,0,0,.6), inset 0 -5px 9px rgba(0,0,0,.4),
+               inset 0 3px 6px rgba(255,255,255,.35);
+    cursor:grab;
   }
+  .lever:active .knob{cursor:grabbing}
+  .lever .housing{                               /* 봉이 여기로 빨려 들어감 */
+    position:absolute; left:50%; margin-left:-19px; bottom:26px; width:38px; height:34px;
+    background:linear-gradient(180deg,#5b6684,#252d42);
+    border:1px solid #6a768f; border-radius:9px; z-index:2;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.3), 0 4px 10px rgba(0,0,0,.5);
+  }
+  .lever .guide{                                 /* 내려가야 할 방향 */
+    position:absolute; left:50%; margin-left:-7px; bottom:62px;
+    display:flex; flex-direction:column; align-items:center; pointer-events:none; z-index:3;
+  }
+  .lever .guide i{font-style:normal; font-size:14px; line-height:.85; color:var(--o2); opacity:.25;
+                  animation:guideBlink 1.4s ease-in-out infinite}
+  .lever .guide i:nth-child(2){animation-delay:.16s}
+  .lever .guide i:nth-child(3){animation-delay:.32s}
+  @keyframes guideBlink{ 0%,100%{opacity:.15} 45%{opacity:.85} }
   .lever .hint{
-    position:absolute; bottom:2px; left:0; right:0; text-align:center;
+    position:absolute; bottom:4px; left:0; right:0; text-align:center;
     font-size:9px; letter-spacing:1.5px; color:var(--dim);
   }
-  .lever:hover:not(.off) .arm{transform:rotate(14deg)}   /* 손을 올리면 이미 내려가기 시작 */
-  .lever.pulled .arm{transform:rotate(74deg); transition-duration:.12s; transition-timing-function:ease-in}
+
+  .lever:hover:not(.off) .arm{transform:translateY(16px)}   /* 손만 올려도 이미 내려감 */
+  .lever.pulled .arm{transform:translateY(96px); transition-duration:.11s; transition-timing-function:ease-in}
+
+  /* 첫 판에는 주기적으로 아래로만 내려갔다 돌아옴 */
+  .lever.fresh .arm{animation:leverNudge 2.2s cubic-bezier(.4,0,.3,1) infinite}
+  .lever.fresh .hint{color:var(--o2); animation:guideBlink 1.4s ease-in-out infinite}
+  @keyframes leverNudge{
+    0%,60%{transform:translateY(0)}
+    72%{transform:translateY(26px)}
+    82%{transform:translateY(8px)}
+    92%{transform:translateY(17px)}
+    100%{transform:translateY(0)}
+  }
+  .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
   .lever.off{opacity:.35; pointer-events:none}
   .lever .knob{cursor:grab}
   .lever:active .knob{cursor:grabbing}
@@ -388,10 +411,10 @@
           <span class="glass"></span>
         </div>
         <div class="lever fresh" id="lever" title="레버를 아래로 당긴다 (Space)">
-          <span class="path"></span>
+          <span class="rail"></span>
           <span class="guide"><i>▾</i><i>▾</i><i>▾</i></span>
-          <span class="mount"></span>
-          <span class="arm"><i class="knob"></i></span>
+          <span class="arm"><i class="shaft"></i><i class="knob"></i></span>
+          <span class="housing"></span>
           <span class="hint">당기기</span>
         </div>
       </div>
