@@ -247,41 +247,6 @@
   }
   .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
   .lever.off{opacity:.35; pointer-events:none}
-  .lever .knob{cursor:grab}
-  .lever:active .knob{cursor:grabbing}
-
-  /* 노브가 지나갈 길을 점선 호로 깔아둠. 위로 솟은 팔 + 오른쪽 아래로 도는 궤적이
-     같이 보이면, 안내문 없이도 "내려야 하는 것"으로 읽힘 */
-  .lever .path{
-    position:absolute; left:50%; bottom:44px; width:152px; height:152px;
-    margin-left:-76px; margin-bottom:-76px; border-radius:50%;
-    border:2px dashed rgba(111,220,255,.28);
-    border-color:transparent rgba(111,220,255,.30) rgba(111,220,255,.16) transparent;
-    pointer-events:none;
-  }
-  /* 궤적 끝(내려앉는 자리)에 아래 화살표 */
-  .lever .guide{
-    position:absolute; left:50%; margin-left:6px; bottom:34px;
-    display:flex; flex-direction:column; gap:1px; pointer-events:none;
-  }
-  .lever .guide i{font-style:normal; font-size:13px; color:var(--o2); opacity:.25;
-                  animation:guideBlink 1.5s ease-in-out infinite}
-  .lever .guide i:nth-child(2){animation-delay:.18s}
-  .lever .guide i:nth-child(3){animation-delay:.36s}
-  @keyframes guideBlink{ 0%,100%{opacity:.18} 45%{opacity:.9} }
-
-  /* 아직 한 번도 안 당겼으면 팔이 주기적으로 "아래로만" 내려갔다 돌아옴.
-     뒤로도 흔들리면 달랑거리는 장식이 되고, 어느 쪽으로 움직여야 하는지가 안 읽힘 */
-  .lever.fresh .arm{animation:leverNudge 2.2s cubic-bezier(.4,0,.3,1) infinite}
-  .lever.fresh .hint{color:var(--o2); animation:guideBlink 1.5s ease-in-out infinite}
-  @keyframes leverNudge{
-    0%,60%{transform:rotate(-4deg)}
-    72%{transform:rotate(22deg)}
-    82%{transform:rotate(6deg)}
-    92%{transform:rotate(14deg)}
-    100%{transform:rotate(-4deg)}
-  }
-  .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
   @media (max-width:640px){ .machine{flex-direction:column; align-items:center; padding:12px} .lever{width:74px} }
 
   .actions{display:flex; gap:10px}
