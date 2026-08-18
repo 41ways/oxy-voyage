@@ -23,7 +23,7 @@
   /* ── 배경 우주. 성운은 radial-gradient, 별은 box-shadow로 찍고
         두 장을 이어 붙여 무한 스크롤시킴 (rAF 안 돌려서 공짜) */
   #space{
-    position:fixed; inset:0; z-index:-1; overflow:hidden;
+    position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
     background:
       radial-gradient(ellipse 60% 45% at 16% 18%, rgba(56,92,190,.22), transparent 62%),
       radial-gradient(ellipse 55% 42% at 84% 74%, rgba(146,58,192,.17), transparent 62%),
@@ -34,6 +34,26 @@
   .slayer{position:absolute; left:0; top:0; width:2200px; height:2000px; animation:starfall linear infinite}
   .slayer span{position:absolute; left:0; border-radius:50%; background:transparent}
   @keyframes starfall{ from{transform:translateY(0)} to{transform:translateY(-2000px)} }
+  /* 멀리 걸린 행성 하나. 화면 구석을 채워주는 용도 */
+  #space .planet{
+    position:absolute; right:-150px; bottom:-190px; width:470px; height:470px; border-radius:50%;
+    background:radial-gradient(circle at 32% 26%, #305484, #17284d 55%, #090f1e 80%);
+    box-shadow:inset -34px -30px 80px rgba(0,0,0,.65), 0 0 110px rgba(60,110,200,.18);
+    opacity:.6;
+  }
+
+  /* 떠다니는 것들 — 가로지르기(바깥)와 회전(안쪽)을 나눠 걸어서 겹침 */
+  .drift{
+    position:absolute; left:0; will-change:transform;
+    animation-name:cross; animation-timing-function:linear; animation-iteration-count:infinite;
+  }
+  .tumble{animation:tumble linear infinite; will-change:transform}
+  @keyframes cross{
+    from{transform:translate3d(-20vw, 0, 0)}
+    to  {transform:translate3d(120vw, var(--dy, 0), 0)}
+  }
+  @keyframes tumble{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
   /* 화면 가장자리를 눌러서 판이 떠 보이게 */
   #space::after{
     content:''; position:absolute; inset:0;
@@ -179,7 +199,7 @@
 </style>
 </head>
 <body>
-<div id="space"></div>
+<div id="space"><div class="planet"></div></div>
 <div id="app">
   <header>
     <div class="titlebar">
@@ -1068,6 +1088,35 @@ document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hi
     }
     sky.appendChild(wrap);
   }
+
+  /* 떠다니는 것들. 음수 delay를 줘서 시작하자마자 화면 여기저기 흩어져 있게 함.
+     멀리 있을수록 작고 흐리고 느리게 — 크기·속도·blur를 같이 묶어야 거리감이 남 */
+  const rnd = (a, b) => a + Math.random()*(b - a);
+  const add = (emoji, o) => {
+    const outer = document.createElement('div');
+    outer.className = 'drift';
+    outer.style.cssText =
+      `top:${o.top}%; font-size:${o.size}px; opacity:${o.op}; filter:blur(${o.blur}px);` +
+      `animation-duration:${o.dur}s; animation-delay:${-o.delay}s; --dy:${o.dy}vh`;
+    const inner = document.createElement('div');
+    inner.className = 'tumble';
+    inner.style.animationDuration = o.spin + 's';
+    if (Math.random() < .5) inner.style.animationDirection = 'reverse';
+    inner.textContent = emoji;
+    outer.appendChild(inner);
+    sky.appendChild(outer);
+  };
+
+  for (let i = 0; i < 7; i++){
+    const far = Math.random();           // 0이면 멀리, 1이면 가까이
+    add('🪨', {
+      top: rnd(4, 92), size: 13 + far*30, op: .2 + far*.3, blur: 1.8 - far*1.8,
+      dur: 190 - far*110, delay: rnd(0, 190), dy: rnd(-16, 16), spin: rnd(20, 55),
+    });
+  }
+  add('☄️',   { top: rnd(6, 26),  size: 26, op:.5,  blur:.4, dur: 58,  delay: rnd(0,58),  dy: 24,  spin: 140 });
+  add('🛰️',   { top: rnd(58, 78), size: 24, op:.45, blur:.3, dur: 130, delay: rnd(0,130), dy: -9,  spin: 95 });
+  add('🧑‍🚀', { top: rnd(28, 62), size: 40, op:.85, blur:0,  dur: 115, delay: rnd(0,115), dy: 12,  spin: 28 });
 })();
 
 // ══════════════════════════════════ 입력
