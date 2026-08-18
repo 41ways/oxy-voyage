@@ -109,15 +109,15 @@
     50%{transform:translateX(3px)}  75%{transform:translateX(-2px)}
   }
 
-  main{display:grid; grid-template-columns:196px minmax(0,1fr) 288px; gap:16px; align-items:start}
-  @media (max-width:1180px){ main{grid-template-columns:162px minmax(0,1fr) 248px; gap:12px} .cabinet{margin-right:46px} }
+  main{display:grid; grid-template-columns:190px minmax(0,1fr) 286px; gap:16px; column-gap:30px; align-items:start}
+  @media (max-width:1180px){ main{grid-template-columns:158px minmax(0,1fr) 244px; gap:10px; column-gap:26px} .cabinet{margin-right:40px} }
   @media (max-width:980px){ main{grid-template-columns:1fr} .cabinet{margin-right:0} }
 
   /* ── 슬롯머신 캐비닛 ─────────────────────────────
      네온 튜브 외곽 + 아치형 간판 + 릴 창 + 콘솔 + 배출구.
      캔버스만 덩그러니 놓으면 판이 아니라 표처럼 보임 */
   .cabinet{
-    position:relative; margin-right:56px;   /* 레버가 놀 자리 — 없으면 오른쪽 패널과 겹침 */
+    position:relative; margin-right:44px;   /* 여기 + 열 간격 30px = 레버(52px)가 놀 자리 */
     border-radius:64px 64px 20px 20px; padding:0 0 0;
     background:
       linear-gradient(180deg, rgba(120,74,220,.40), rgba(46,28,96,.72) 22%, rgba(18,14,44,.92)),
@@ -336,7 +336,8 @@
     100%{transform:rotate(-5deg)}
   }
   .lever.fresh:hover .arm, .lever.pulled .arm{animation:none}
-  .lever.off{opacity:.3; pointer-events:none}
+  /* 스핀 중엔 못 당기지만 사라지진 않게. opacity를 깎으면 없어진 걸로 보임 */
+  .lever.off{pointer-events:none; filter:brightness(.72) saturate(.7)}
   @media (max-width:1180px){ .lever{right:-44px; transform:scale(.86); transform-origin:top center} }
   @media (max-width:980px){ .lever{position:static; width:100%; height:170px; margin:0 auto 6px} }
 
@@ -376,7 +377,7 @@
   #overlay.show{opacity:1}
   .modal{
     background:rgba(26,33,49,.96); border:1px solid var(--line); border-radius:16px;
-    padding:22px; max-width:660px; width:100%; text-align:center;
+    padding:22px; max-width:800px; width:100%; text-align:center;
     opacity:0; transform:translateY(22px) scale(.97);
     transition:opacity .26s ease, transform .32s cubic-bezier(.2,.85,.3,1);
   }
@@ -385,7 +386,7 @@
   .modal p.sub{margin:0 0 18px; font-size:12px; color:var(--dim)}
   .picks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap}
   .pickcard{
-    width:180px; background:var(--panel2); border:2px solid var(--line); border-radius:12px;
+    width:172px; background:var(--panel2); border:2px solid var(--line); border-radius:12px;
     padding:16px 12px; cursor:pointer; text-align:center;
     opacity:0; animation:riseIn .44s cubic-bezier(.2,.85,.3,1) forwards;
   }
@@ -536,6 +537,8 @@
 
 // ══════════════════════════════════ 그리기 상수
 const CELL = 96, GAP = 8, PAD = 8;
+// 심볼이 59종이라 3장으로는 자기 축이 좀처럼 안 뜸 — 4장으로 늘려 조립 속도를 맞춤
+const PICK_COUNT = 4;
 
 const $ = s => document.querySelector(s);
 /* 연출 배속. 대기시간을 전부 여기로 통과시켜서 버튼 하나로 조절됨 */
@@ -691,9 +694,24 @@ async function spin(){
 
 /* 이 심볼이 어떤 심볼과 엮이는지 한 줄로. 초보자가 덱 방향을 감으로 잡는 데 이게 제일 큼 —
    설명을 끝까지 안 읽어도 "얘랑 얘를 같이 모으면 되는구나"가 그림으로 들어옴 */
+/* 짝이 없는 심볼은 대개 "판 전체를 보는" 쪽이라, 단독이라고 쓰면 오해다.
+   설명에서 사거리 낱말을 주워 범위로 보여줌 */
+function scopeOf(d){
+  if (d.includes('판에') || d.includes('판의') || d.includes('판 위'))       return '🗺️ 판 전체';
+  if (d.includes('화물칸'))                                                return '📦 화물칸';
+  if (d.includes('같은 행') || d.includes('같은 열') || d.includes('행·열')) return '➕ 같은 행·열';
+  if (d.includes('인접'))                                                  return '⬚ 인접 8칸';
+  if (d.includes('등장할 때마다') || d.includes('등장하면'))                 return '⏳ 등장할수록';
+  return null;
+}
+
 function relRow(id){
   const r = relatedOf(id);
-  if (!r.ids.length && !r.selfRef) return '<div class="rel none">단독으로 쓰는 심볼</div>';
+  if (!r.ids.length && !r.selfRef){
+    const sc = scopeOf(SYMBOLS[id].d);
+    return sc ? `<div class="rel"><b>${sc}</b></div>`
+              : '<div class="rel none">단독으로 쓰는 심볼</div>';
+  }
   const self = r.selfRef ? '<b title="같은 심볼끼리 뭉칠수록 강해진다">🔁 조합</b>' : '';
   const list = r.ids.map(x => `<i title="${SYMBOLS[x].n}">${SYMBOLS[x].e}</i>`).join('');
   return `<div class="rel">${self}${list}</div>`;
@@ -701,7 +719,7 @@ function relRow(id){
 
 // ══════════════════════════════════ 심볼 획득 (매 스핀 후)
 function offerSymbols(){
-  const picks = rollChoices(3, Math.random, game.round);
+  const picks = rollChoices(PICK_COUNT, Math.random, game.round);
   return modal({
     title: '무엇을 실을까',
     sub: '고른 심볼이 화물칸에 들어간다. 마음에 안 들면 넘겨도 됨',

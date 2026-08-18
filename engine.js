@@ -6,6 +6,8 @@
      둘이 다른 규칙으로 도는 걸 막으려고 파일을 하나로 유지함
    변경내역
      v0.2  index.html에서 규칙만 떼어냄, 보통/희귀/전설 등급 추가
+     v0.5  순도 규칙, 우주 동물·외계인·통신 계열 16종 추가,
+           고립돼 있던 심볼 12종에 상호작용 연결
      v0.4  스핀 5회 고정, 수경재배 3단계(🌱 수경재배 → 🌷 꽃봉오리 → 🌸 만개한 꽃),
            원형(도박/조합/성장/안정)별 구역 통과율을 기준으로 재조정
      v0.3  시뮬레이션(sim/balance.js) 결과로 수치 조정 —
@@ -45,14 +47,15 @@ var RARITY = {
    "구역별 탈락률을 일정하게" 만들려면 소모량을 그 구역 정산 직전
    산소 분포의 같은 백분위에 놓으면 된다 — 소모량 = p15면 15%가 떨어짐.
    남은 산소가 다음 구역으로 넘어가 자기참조가 걸리므로 다섯 번 수렴시켰음.
-   결과: 8구역부터 28구역까지 탈락률이 12~19%로 고르게 깔림.
+   결과: 8~28구역 탈락률이 13~19%로 고르게 깔림 (심볼 59종 · 선택지 4장 기준).
    9→10구역이 유난히 튀는 건 순도·배양조가 그쯤 붙어서 수입이 계단으로
    오르기 때문 — 소모량을 같이 올려야 탈락률이 평평해진다.
-   다시 맞추려면: node sim/fit-costs.js 15 250 5 */
+   심볼을 늘리거나 선택지 수를 바꾸면 반드시 다시 맞출 것:
+     node sim/fit-costs.js 15 220 5 */
 var COSTS = [
-  90, 130, 175, 225, 275, 305, 340, 430, 580, 1130,
-  1760, 2200, 2480, 2740, 3080, 3300, 3710, 3920, 4390, 4680,
-  5230, 5430, 5680, 6000, 6390, 6890, 7570, 9040, 10130, 13260,
+  90, 130, 175, 225, 275, 305, 340, 410, 580, 1100,
+  1670, 2090, 2480, 2720, 3120, 3340, 3740, 4030, 4490, 4700,
+  5020, 5540, 5890, 6530, 6980, 7250, 7540, 7890, 8330, 8930,
 ];
 function costFor(r){
   return r <= COSTS.length
@@ -157,6 +160,31 @@ var SYMBOLS = {
     effect:function(c){ var en=c.self.entry; en.mem.age=(en.mem.age||0)+1;
       if(en.mem.age>=LARVA_HATCH){ c.morph(c.self,'alien'); c.note('🥚 부화했다'); } } },
 
+
+  // ─── 우주 동물원 · 통신 · 보급 (흔함)
+  rat:{ e:'🐁', n:'실험용 쥐', base:1, r:'common',
+    d:'15% 확률로 화물칸에 🐁 실험용 쥐가 한 마리 더. 🐈‍⬛ 함선 고양이의 밥',
+    effect:function(c){ if(c.rand()<0.15){ c.deckAdd('rat'); c.note('🐁 쥐가 늘었다'); } } },
+
+  cat:{ e:'🐈‍⬛', n:'함선 고양이', base:2, r:'common',
+    d:'인접한 🐁 실험용 쥐를 잡아먹고 마리당 +13 (쥐는 화물칸에서 사라진다)',
+    effect:function(c){ var t=c.adj('rat');
+      for(var i=0;i<t.length;i++){ c.addSelf(13); c.kill(t[i]); } } },
+
+  radio:{ e:'📻', n:'무전기', base:1, r:'common',
+    d:'같은 행에 📡 통신 안테나가 있으면 +9',
+    effect:function(c){ if(c.row('antenna').length) c.addSelf(9); } },
+
+  pill:{ e:'💊', n:'보급 알약', base:1, r:'common',
+    d:'인접한 🧑‍🚀 승무원 · 👾 외계생명 1개당 +3',
+    effect:function(c){ var k=c.adj('crew','alien').length; if(k) c.addSelf(3*k); } },
+
+  battery:{ e:'🪫', n:'방전 전지', base:8, r:'common',
+    d:'처음엔 8. 등장할 때마다 1씩 닳아 0이 된다',
+    baseOf:function(en){ return Math.max(0, 8 - (en.mem.used||0)); },
+    badge:function(en){ return '' + Math.max(0, 8 - (en.mem.used||0)); },
+    effect:function(c){ var en=c.self.entry; en.mem.used=(en.mem.used||0)+1; } },
+
   // ═══════════ 보통 — 판을 굴리는 엔진
   bot:{ e:'🤖', n:'정비로봇', base:2, r:'uncommon', d:'인접한 🔩 볼트 · 🛢️ 윤활유 1개당 +5',
     effect:function(c){ var k=c.adj('part','oil').length; if(k) c.addSelf(5*k); } },
@@ -164,10 +192,14 @@ var SYMBOLS = {
   crew:{ e:'🧑‍🚀', n:'승무원', base:2, r:'uncommon', d:'인접한 🥫 식량 · 💧 정제수 1개당 +3',
     effect:function(c){ var k=c.adj('ration','water').length; if(k) c.addSelf(3*k); } },
 
-  fuel:{ e:'🔋', n:'연료전지', base:3, r:'uncommon', d:'조용히 3' },
+  fuel:{ e:'🔋', n:'연료전지', base:3, r:'uncommon',
+    d:'인접한 ☢️ 반응로 · 🕳️ 미세 블랙홀 1개당 +7. 기본값이 커서 빨아먹히기 좋다',
+    effect:function(c){ var k=c.adj('reactor','hole').length; if(k) c.addSelf(7*k); } },
 
-  navcom:{ e:'🖥️', n:'항법 컴퓨터', base:2, r:'uncommon', d:'같은 열의 심볼 1개당 +2',
-    effect:function(c){ var k=c.col().length; if(k) c.addSelf(2*k); } },
+  navcom:{ e:'🖥️', n:'항법 컴퓨터', base:2, r:'uncommon',
+    d:'같은 열의 심볼 1개당 +2. 📡 통신 안테나와 인접하면 두 배',
+    effect:function(c){ var k=c.col().length; if(!k) return;
+      c.addSelf(2*k * (c.adj('antenna').length ? 2 : 1)); } },
 
   cargo:{ e:'📦', n:'미확인 화물', base:0, r:'uncommon', d:'등장할 때마다 안이 +12씩 불어남. 열기 전엔 0. 오래 묵힐수록 커진다',
     badge:function(en){ return '' + (en.mem.acc || 0); },
@@ -180,8 +212,9 @@ var SYMBOLS = {
       c.addSelf(25 + (best.entry.mem.acc||0)); c.kill(best); } },
 
   leak:{ e:'🌡️', n:'임시 배관', base:8, r:'uncommon', sticky:0.55,
-    d:'혼자면 8. 대신 인접한 모든 심볼 -2. 정비로 버려도 55% 확률로 안 떨어짐',
-    effect:function(c){ var a=c.adj(); for(var i=0;i<a.length;i++) c.add(a[i],-2); } },
+    d:'혼자면 8, 인접한 🌬️ 환기구 1개당 +7. 대신 인접한 모든 심볼 -2. 버려도 55% 확률로 안 떨어짐',
+    effect:function(c){ var d=c.adj('duct').length; if(d) c.addSelf(7*d);
+      var a=c.adj(); for(var i=0;i<a.length;i++) c.add(a[i],-2); } },
 
   mold:{ e:'🦠', n:'곰팡이', base:2, r:'uncommon',
     d:'혼자면 2. 인접한 모든 심볼 -2. 18% 확률로 화물칸에 곰팡이가 하나 더',
@@ -197,7 +230,7 @@ var SYMBOLS = {
       for(var i=0;i<t.length;i++){ c.addSelf(18); c.kill(t[i]); } } },
 
   hole:{ e:'🕳️', n:'미세 블랙홀', base:0, r:'uncommon',
-    d:'인접한 심볼을 전부 0으로 만들고, 빨아들인 기본값의 3배를 자기 값으로',
+    d:'인접한 심볼을 전부 0으로 만들고, 빨아들인 기본값의 3배를 자기 값으로. 🔋 연료전지처럼 기본값이 큰 심볼을 물려야 이득',
     /* 기준이 "계산된 값"이 아니라 "기본값"인 게 핵심.
        시너지로 잔뜩 부풀린 심볼을 옆에 두면 그 값을 통째로 날리고 기본값만 챙기니 손해고,
        🔋 연료전지·💎 희귀 광물·🌡️ 임시 배관처럼 기본값 자체가 큰 심볼을 물려야 이득.
@@ -209,15 +242,18 @@ var SYMBOLS = {
         if (b > 0) c.addSelf(b*3);
       } } },
 
-  parasite:{ e:'🪱', n:'기생체', base:1, r:'uncommon', d:'인접한 심볼 하나에서 8을 빨아 +12',
-    effect:function(c){ var a=c.adj(); if(!a.length) return;
+  parasite:{ e:'🪱', n:'기생체', base:1, r:'uncommon',
+    d:'인접한 심볼 하나에서 8을 빨아 +12. 👾 외계생명에 붙으면 +24',
+    effect:function(c){ var host=c.adj('alien'), a=c.adj();
+      if(host.length){ c.add(host[0],-8); c.addSelf(24); return; }
+      if(!a.length) return;
       var t=a[Math.floor(c.rand()*a.length)]; c.add(t,-8); c.addSelf(12); } },
 
   coupon:{ e:'🎫', n:'보급 쿠폰', base:-3, r:'uncommon', costCutPct:0.08,
     d:'자체 -3. 대신 화물칸에 있는 1장당 구역 소모량 -8% (합쳐서 최대 -30%)' },
 
   purge:{ e:'🗑️', n:'폐기 슈트', base:4, r:'uncommon',
-    d:'판에 3개 이하로 깔린 종류 중 가장 적은 것을 화물칸에서 영구히 버리고 +10',
+    d:'판에 3개 이하로 깔린 종류 중 가장 적은 것을 화물칸에서 영구히 버리고 +10. 🦠 곰팡이를 버리면 +30',
     /* 정비는 구역당 한 장뿐이라, 덱을 한 종류로 몰아가려면 이런 수단이 필요함.
        소수파부터 지우기 때문에 이미 기울어진 덱일수록 잘 듣는다 */
     effect:function(c){
@@ -228,17 +264,20 @@ var SYMBOLS = {
       for(var id in cnt) if(cnt[id] <= 3 && cnt[id] < low && id !== 'purge'){ low=cnt[id]; pickId=id; }
       if(!pickId) return;
       for(var i=0;i<a.length;i++) if(a[i].entry.id===pickId){ c.kill(a[i]); break; }
-      c.addSelf(10); c.note('🗑️ '+SYMBOLS[pickId].e+' 한 장 폐기'); } },
+      c.addSelf(pickId==='mold' ? 30 : 10); c.note('🗑️ '+SYMBOLS[pickId].e+' 한 장 폐기'); } },
 
   culture:{ e:'🧫', n:'배양조', base:2, r:'common',
-    d:'판에서 가장 많이 깔린 종류를 화물칸에 하나 더 만든다',
+    d:'판에서 가장 많이 깔린 종류를 화물칸에 하나 더 만든다. 🪐 중력 렌즈와 인접하면 두 장',
     /* 통일 덱의 엔진. 정비로 종류를 쳐내는 것만으로는 덱이 줄기만 해서,
        "같은 걸 늘리는" 수단이 없으면 순도 덱은 굶어 죽는다 */
     effect:function(c){
       var a=c.all(), cnt={}, best=null, bn=0;
       for(var i=0;i<a.length;i++){ var id=a[i].entry.id; cnt[id]=(cnt[id]||0)+1;
         if(cnt[id]>bn){ bn=cnt[id]; best=id; } }
-      if(best && !SYMBOLS[best].noOffer){ c.deckAdd(best); c.note('🧫 '+SYMBOLS[best].e+' 배양됨'); } } },
+      if(!best || SYMBOLS[best].noOffer) return;
+      var n = c.adj('lens').length ? 2 : 1;
+      for(var j=0;j<n;j++) c.deckAdd(best);
+      c.note('🧫 '+SYMBOLS[best].e+(n>1?' 두 장':'')+' 배양됨'); } },
 
   antenna:{ e:'📡', n:'통신 안테나', base:2, r:'uncommon', d:'같은 행·열에 있는 📡 통신 안테나 1개당 +5',
     effect:function(c){ var k=c.row('antenna').length + c.col('antenna').length; if(k) c.addSelf(5*k); } },
@@ -250,15 +289,48 @@ var SYMBOLS = {
     d:'인접한 ☢️ 반응로 1개당 +10. 붙어 있는 반응로는 곰팡이를 안 만든다',
     effect:function(c){ var k=c.adj('reactor').length; if(k) c.addSelf(10*k); } },
 
+
+  dog:{ e:'🐕', n:'우주견', base:3, r:'uncommon',
+    d:'인접한 🐈‍⬛ 함선 고양이 · 🧑‍🚀 승무원 1개당 +5',
+    effect:function(c){ var k=c.adj('cat','crew').length; if(k) c.addSelf(5*k); } },
+
+  trader:{ e:'👽', n:'외계 상인', base:0, r:'uncommon',
+    d:'판의 심볼 하나를 무작위로 팔아치워 +30 (그 심볼은 화물칸에서도 사라진다)',
+    effect:function(c){ var a=c.all(); if(!a.length) return;
+      var t=a[Math.floor(c.rand()*a.length)];
+      c.addSelf(30); c.kill(t); c.note('👽 '+SYMBOLS[t.entry.id].e+' 팔아치웠다'); } },
+
+  sat:{ e:'🛰️', n:'관측 위성', base:2, r:'uncommon',
+    d:'같은 행·열의 빈칸 1개당 +2. 판이 헐거울수록 잘 본다',
+    effect:function(c){ var k=0, cells=c.cells;
+      for(var i=0;i<cells.length;i++){
+        var o=cells[i];
+        if(o===c.self || o.entry) continue;
+        if(o.r===c.self.r || o.c===c.self.c) k++;
+      }
+      if(k) c.addSelf(2*k); } },
+
+  extin:{ e:'🧯', n:'소화기', base:2, r:'uncommon',
+    d:'인접한 🔥 소각로 · ☢️ 반응로 1개당 +11. 붙어 있는 반응로는 🦠 곰팡이를 안 만든다',
+    effect:function(c){ var k=c.adj('incin','reactor').length; if(k) c.addSelf(11*k); } },
+
+  hook:{ e:'🪝', n:'견인 갈고리', base:1, r:'uncommon',
+    d:'인접한 📦 미확인 화물의 내용물을 +10씩 더 불린다',
+    effect:function(c){ var t=c.adj('cargo');
+      for(var i=0;i<t.length;i++){ t[i].entry.mem.acc=(t[i].entry.mem.acc||0)+10; c.link(t[i]); }
+      if(t.length) c.addSelf(2*t.length); } },
+
   // ═══════════ 희귀 — 배수와 폭발
   reactor:{ e:'☢️', n:'반응로', base:3, r:'rare',
-    d:'인접한 모든 심볼 2배 (한 칸은 스핀당 한 번만). 대신 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재가 붙어 있으면 없음)',
+    d:'인접한 모든 심볼 2배 (한 칸은 스핀당 한 번만). 대신 15% 확률로 화물칸에 🦠 곰팡이 (🧊 냉각재 · 🧯 소화기가 붙어 있으면 없음)',
     effect:function(c){ var a=c.adj(); for(var i=0;i<a.length;i++) c.mul(a[i],2);
-      if(c.adj('coolant').length) return;            // 냉각재가 붙어 있으면 오염 없음
+      if(c.adj('coolant','extin').length) return;    // 냉각재·소화기가 붙어 있으면 오염 없음
       if(c.rand()<0.15){ c.deckAdd('mold'); c.note('☢️ 방사선에 곰팡이가 슬었다'); } } },
 
-  turbine:{ e:'🌀', n:'순환 터빈', base:4, r:'rare', d:'같은 행의 모든 심볼 +5',
-    effect:function(c){ var a=c.row(); for(var i=0;i<a.length;i++) c.add(a[i],5); } },
+  turbine:{ e:'🌀', n:'순환 터빈', base:4, r:'rare',
+    d:'같은 행의 모든 심볼 +5. 그 행의 🌬️ 환기구 1개당 자신도 +6',
+    effect:function(c){ var a=c.row(); for(var i=0;i<a.length;i++) c.add(a[i],5);
+      var d=c.row('duct').length; if(d) c.addSelf(6*d); } },
 
   nano:{ e:'🧬', n:'복제 나노봇', base:0, r:'rare', d:'인접한 심볼 중 가장 큰 값과 같아짐',
     effect:function(c){ var a=c.adj(), m=0;
@@ -274,8 +346,10 @@ var SYMBOLS = {
       for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='o2') k++;
       if(k) c.addSelf(Math.min(2*k, 24)); } },
 
-  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare', d:'2% 확률로 +3500, 아니면 +2',
-    effect:function(c){ if(c.rand()<0.02){ c.addSelf(3500); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
+  wormhole:{ e:'🌌', n:'웜홀', base:0, r:'rare',
+    d:'2% 확률로 +3500, 아니면 +2. 🪐 중력 렌즈와 인접하면 확률이 세 배',
+    effect:function(c){ var p = 0.02 * (c.adj('lens').length ? 3 : 1);
+      if(c.rand()<p){ c.addSelf(3500); c.note('🌌 웜홀이 열렸다!'); } else c.addSelf(2); } },
 
   ore:{ e:'💎', n:'희귀 광물', base:9, r:'rare', d:'묵직하게 9' },
 
@@ -287,23 +361,66 @@ var SYMBOLS = {
       for(var i=0;i<a.length;i++) if(cnt[a[i].entry.id]===top) c.add(a[i], top);
       c.addSelf(top); } },
 
+
+  scope:{ e:'🔭', n:'관측 망원경', base:0, r:'rare',
+    d:'판에 깔린 심볼 종류 1가지당 +4. 잡다할수록 좋다 — 순도와 정반대 축',
+    effect:function(c){ var a=c.all(), seen={}, k=0;
+      for(var i=0;i<a.length;i++){ var id=a[i].entry.id; if(!seen[id]){ seen[id]=1; k++; } }
+      if(k) c.addSelf(4*k); } },
+
+  anchor:{ e:'⚓', n:'자기 앵커', base:4, r:'rare',
+    d:'인접한 🧲 자기 코일 1개당 +9',
+    effect:function(c){ var k=c.adj('coil').length; if(k) c.addSelf(9*k); } },
+
+  booster:{ e:'📶', n:'중계 증폭기', base:3, r:'rare',
+    d:'인접한 📡 통신 안테나 · 📻 무전기의 값을 두 배로',
+    effect:function(c){ var t=c.adj('antenna','radio');
+      for(var i=0;i<t.length;i++) c.mul(t[i],2); } },
+
+  turtle:{ e:'🐢', n:'심우주 거북', base:2, r:'rare',
+    d:'등장할 때마다 영구히 +3씩 자란다 (최대 +30). 느리지만 확실하다',
+    baseOf:function(en){ return 2 + (en.mem.grow||0); },
+    badge:function(en){ return '+' + (en.mem.grow||0); },
+    effect:function(c){ var en=c.self.entry;
+      if((en.mem.grow||0) < 30) en.mem.grow=(en.mem.grow||0)+3; } },
+
   // ═══════════ 전설
   mastercode:{ e:'🗝️', n:'마스터 코드', base:5, r:'legend', d:'판 위의 📦 미확인 화물을 전부 열어 개당 60 + 쌓인 값',
     effect:function(c){ var t=c.all('cargo');
       for(var i=0;i<t.length;i++){ c.addSelf(60 + (t[i].entry.mem.acc||0)); c.kill(t[i]); } } },
 
-  aicore:{ e:'🧠', n:'AI 코어', base:10, r:'legend', d:'인접한 심볼 1개당 +6',
-    effect:function(c){ var k=c.adj().length; if(k) c.addSelf(6*k); } },
+  aicore:{ e:'🧠', n:'AI 코어', base:10, r:'legend', d:'인접한 심볼 1개당 +6. 그중 🖥️ 항법 컴퓨터는 1개당 +16',
+    effect:function(c){ var k=c.adj().length, n=c.adj('navcom').length;
+      if(k) c.addSelf(6*k + 10*n); } },
 
   align:{ e:'✨', n:'초공간 정렬', base:6, r:'legend',
     d:'이번 스핀의 순도를 4개 더 깔린 것으로 쳐준다. 순도가 이미 높을수록 무섭다',
     effect:function(c){ c.purityBoost(4); c.note('✨ 위상이 맞았다'); } },
 
-  critical:{ e:'⚛️', n:'임계 반응', base:0, r:'legend', d:'이번 스핀 총합 2배. 대신 다음 구역 소모량 +30%',
-    effect:function(c){ c.spinMul(2); c.debt({mul:1.30}); c.note('⚛️ 임계 돌입 — 다음 구역이 무거워진다'); } },
+  critical:{ e:'⚛️', n:'임계 반응', base:0, r:'legend', d:'이번 스핀 총합 2배. 대신 다음 구역 소모량 +30% — 🧊 냉각재가 인접하면 빚이 없다',
+    effect:function(c){ c.spinMul(2);
+      if(c.adj('coolant').length){ c.note('⚛️ 냉각재가 임계를 잡았다 — 빚 없음'); return; }
+      c.debt({mul:1.30}); c.note('⚛️ 임계 돌입 — 다음 구역이 무거워진다'); } },
 
-  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', d:'지금 즉시 +400. 대신 다음 구역 소모량 +35%',
-    effect:function(c){ c.gain(400); c.debt({mul:1.35}); c.note('🩸 비상 배급 개봉'); } },
+  emergency:{ e:'🩸', n:'비상 배급', base:0, r:'legend', d:'지금 즉시 +400. 대신 다음 구역 소모량 +35% — 화물칸에 🎫 보급 쿠폰이 있으면 절반만',
+    effect:function(c){ c.gain(400);
+      var hasCoupon=false;
+      for(var i=0;i<c.deck.length;i++) if(c.deck[i].id==='coupon'){ hasCoupon=true; break; }
+      c.debt({mul: hasCoupon ? 1.175 : 1.35});
+      c.note('🩸 비상 배급 개봉' + (hasCoupon ? ' (쿠폰으로 빚 절반)' : '')); } },
+
+
+  kraken:{ e:'🦑', n:'우주 크라켄', base:0, r:'legend',
+    d:'인접한 심볼을 통째로 삼켜, 각 기본값의 3배를 가져간다 (삼킨 건 화물칸에서도 사라짐)',
+    effect:function(c){ var a=c.adj();
+      for(var i=0;i<a.length;i++){ var b=baseOf(a[i].entry); c.addSelf(Math.max(0,b)*3); c.kill(a[i]); }
+      if(a.length) c.note('🦑 '+a.length+'개를 삼켰다'); } },
+
+  prism:{ e:'🌈', n:'스펙트럼', base:5, r:'legend',
+    d:'판에 심볼 종류가 12가지 이상이면 이번 스핀 총합 2배',
+    effect:function(c){ var a=c.all(), seen={}, k=0;
+      for(var i=0;i<a.length;i++){ var id=a[i].entry.id; if(!seen[id]){ seen[id]=1; k++; } }
+      if(k>=12){ c.spinMul(2); c.note('🌈 스펙트럼이 갈라졌다'); } } },
 
   // ═══════════ 부화로만 나오는 놈 (뽑기 목록엔 안 뜸)
   alien:{ e:'👾', n:'외계생명', base:6, r:'uncommon', noOffer:true,
