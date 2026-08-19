@@ -73,6 +73,7 @@
   .mini b{font-size:15px; font-variant-numeric:tabular-nums}
   .mini.best b{color:var(--good)}
   #muteBtn{padding:6px 10px; font-size:14px; line-height:1}
+  #guideBtn{padding:6px 12px; font-size:12px; font-weight:800; border-color:rgba(186,124,255,.6)}
   .spacer{flex:1}
 
   /* ── 왼쪽 계기판. 구역이 제일 크고 아래로 갈수록 부차적 */
@@ -511,6 +512,73 @@
   }
   @keyframes lossIn{ from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:none} }
 
+  /* ── 처음 보는 사람용 안내 */
+  .guide{
+    position:fixed; inset:0; z-index:60; display:none;
+    align-items:center; justify-content:center; padding:24px;
+    background:rgba(6,10,22,.86); backdrop-filter:blur(5px);
+    opacity:0; transition:opacity .2s;
+  }
+  .guide.on{display:flex}
+  .guide.show{opacity:1}
+  .gbox{
+    position:relative; display:flex; width:100%; max-width:940px; height:min(640px, 86vh);
+    background:linear-gradient(180deg,rgba(30,22,66,.98),rgba(15,11,34,.99));
+    border:1px solid rgba(186,124,255,.5); border-radius:18px; overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,.7), 0 0 40px rgba(140,90,240,.25);
+  }
+  .gtabs{
+    width:186px; flex:none; padding:16px 10px; display:flex; flex-direction:column; gap:4px;
+    background:rgba(10,7,26,.6); border-right:1px solid rgba(186,124,255,.28);
+  }
+  .gtabs button{
+    text-align:left; border:0; background:transparent; border-radius:9px;
+    padding:9px 12px; font-size:13px; font-weight:700; color:var(--dim);
+  }
+  .gtabs button:hover{background:rgba(186,124,255,.12); color:var(--fg)}
+  .gtabs button.on{background:rgba(186,124,255,.22); color:#fff; box-shadow:inset 2px 0 0 var(--o2)}
+  .gbody{flex:1; padding:22px 26px; overflow-y:auto; font-size:13px; line-height:1.75}
+  .gbody h3{margin:0 0 4px; font-size:19px}
+  .gbody h4{margin:20px 0 6px; font-size:14px; color:var(--o2)}
+  .gbody p{margin:0 0 10px; color:#cfd7e8}
+  .gbody .lead{color:var(--dim); margin-bottom:16px}
+  .gbody b{color:#fff}
+  .gbody table{border-collapse:collapse; width:100%; margin:8px 0 14px; font-size:12px}
+  .gbody th,.gbody td{padding:6px 9px; border-bottom:1px solid rgba(186,124,255,.18); text-align:left}
+  .gbody th{color:var(--dim); font-weight:600; font-size:11px}
+  .gbody td.num{text-align:right; font-variant-numeric:tabular-nums}
+  .gbody .calc{
+    background:rgba(10,7,26,.7); border:1px solid rgba(186,124,255,.28); border-radius:10px;
+    padding:12px 14px; margin:10px 0 14px; font-variant-numeric:tabular-nums;
+  }
+  .gbody .calc .row{display:flex; justify-content:space-between; gap:12px}
+  .gbody .calc .row.sum{border-top:1px solid rgba(186,124,255,.28); margin-top:6px; padding-top:6px; font-weight:800; color:#fff}
+  .gbody .sym{
+    display:inline-flex; align-items:center; gap:4px; background:var(--panel2);
+    border:1px solid var(--line); border-radius:8px; padding:3px 7px; margin:2px 3px 2px 0;
+    font-size:15px; white-space:nowrap;
+  }
+  .gbody .sym u{text-decoration:none; font-size:11px; color:#cfd7e8}
+  .gbody .deckcard{
+    border:1px solid rgba(186,124,255,.3); border-radius:12px; padding:13px 15px; margin:0 0 12px;
+    background:rgba(10,7,26,.45);
+  }
+  .gbody .deckcard .ttl{font-size:15px; font-weight:800; color:#fff; margin-bottom:2px}
+  .gbody .deckcard .meta{font-size:11px; color:var(--legend); margin-bottom:7px}
+  .gfoot{
+    position:absolute; right:18px; bottom:16px; display:flex; align-items:center; gap:12px;
+    font-size:11px; color:var(--dim);
+  }
+  .gfoot b{color:var(--fg)}
+  .gbody{padding-bottom:64px}
+  @media (max-width:760px){ .gfoot{position:static; padding:12px 16px; justify-content:center; flex-wrap:wrap} }
+  .gclose{position:absolute; right:12px; top:12px; padding:6px 11px; border-radius:9px; font-size:14px; line-height:1}
+  @media (max-width:760px){
+    .gbox{flex-direction:column; height:92vh}
+    .gtabs{width:100%; flex-direction:row; overflow-x:auto; border-right:0; border-bottom:1px solid rgba(186,124,255,.28)}
+    .gtabs button{white-space:nowrap}
+  }
+
   /* 툴팁 */
   #tip{
     position:fixed; z-index:60; pointer-events:none; display:none;
@@ -531,6 +599,7 @@
       <h1>우주탐험<small>slot roguelike v0.5</small></h1>
       <div class="spacer"></div>
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
+      <button id="guideBtn" title="처음 보는 사람용 안내 (H)">? 도움말</button>
       <button id="muteBtn" title="소리 켜기/끄기">🔊</button>
     </div>
   </header>
@@ -599,6 +668,18 @@
       <button id="cargoClose" title="닫기 (C · Esc)">✕</button>
     </div>
     <div class="deck" id="deck"></div>
+  </div>
+</div>
+
+<div id="guide" class="guide">
+  <div class="gbox">
+    <div class="gtabs" id="gtabs"></div>
+    <div class="gbody" id="gbody"></div>
+    <button class="gclose" id="guideClose" title="닫기 (Esc)">✕</button>
+    <div class="gfoot">
+      <button id="guideSkip" class="pill pink">건너뛰고 시작하기</button>
+      <span>언제든 위쪽 <b>? 도움말</b> 이나 <b>H</b> 키로 다시 열 수 있어</span>
+    </div>
   </div>
 </div>
 
@@ -1418,6 +1499,202 @@ document.addEventListener('mouseout', ev => { if (ev.target.closest('.chip')) hi
   add('🧑‍🚀', { top: rnd(28, 62), size: 42, op:.95, blur:0,  dur: 115, delay: rnd(0,115), dy: 12,  spin: 28 });
 })();
 
+
+// ══════════════════════════════════ 처음 보는 사람용 안내
+/* 표는 전부 engine.js에서 뽑아 그린다. 밸런스를 고쳐도 설명이 낡지 않게 */
+const symChip = id => {
+  const y = SYMBOLS[id];
+  return y ? `<span class="sym">${y.e}<u>${y.n}</u></span>` : '';
+};
+const symRow = ids => ids.map(symChip).join('');
+
+/* 예시 덱 — 핵심 심볼과 굴러가는 방식. id만 적어두면 이름·이모지는 엔진에서 가져옴 */
+const GUIDE_DECKS = [
+  { t:'🫧 통일 — 산소방울', lv:'쉬움 · 천장 최상',
+    ids:['o2','culture','purge','tank','lens'],
+    d:'산소방울은 <b>화물칸에 실린 장수</b>로 값이 오른다. 판 20칸이 꽉 차도 계속 자라는 유일한 축이라, 화물칸을 산소방울로만 채우면 순도 배수(최대 3배)까지 얹혀 끝없이 커진다. 🧫 배양조로 불리고 🗑️ 폐기 슈트로 다른 종류를 쳐내는 게 전부.' },
+  { t:'🥫 인접 짝짓기 — 식량·정제수·승무원', lv:'가장 쉬움 · 천장 낮음',
+    ids:['ration','water','crew','pill'],
+    d:'서로 옆에 붙기만 하면 값이 오른다. 조건이 단순해서 첫 판에 제일 안전하지만, 값이 <b>선형으로만</b> 늘어서 10구역 근처에서 소모량을 못 따라간다. 처음 감 잡을 때 쓰고, 중간에 다른 축으로 갈아타는 게 좋다.' },
+  { t:'🌱 온실 — 3단계 성장', lv:'보통 · 천장 낮음',
+    ids:['hydro','water','solar','bloom'],
+    d:'🌱 수경재배가 💧 정제수 옆에서 네 번 자라면 🌷 꽃봉오리가 되고, 그 뒤엔 ☀️ 태양광 패널 옆에서 네 번 더 받아야 🌸 만개한 꽃(기본 18)이 된다. 물과 햇빛 <b>둘 다</b> 필요해서 순도를 못 챙기는 대신, 완성한 꽃은 혼자서도 크다.' },
+  { t:'🦠 오염 — 곰팡이를 키워 태운다', lv:'어려움 · 천장 높음',
+    ids:['mold','incin','kit','extin'],
+    d:'🦠 곰팡이는 혼자선 기본 2에 인접 −2라 확실히 손해다. 대신 🔥 소각로가 같은 행의 곰팡이를 <b>개당 +32</b>로 태우고 🧰 정비 키트가 인접 곰팡이를 개당 +18로 치운다. 곰팡이를 일부러 늘려두고 청소 수단이 손에 들어오길 기다리는 덱.' },
+  { t:'🌌 웜홀 — 확률에 전부 건다', lv:'어려움 · 천장 최상',
+    ids:['wormhole','lens','culture','purge'],
+    d:'웜홀은 화물칸에 <b>4장부터</b> 확률이 2.2%로 살아나고 <b>8장이면 6%</b>가 된다. 그 전엔 0.3%라 있으나 마나. 판 20칸이 전부 웜홀이면 한 스핀에 +3500이 여러 번 터진다. 🪐 중력 렌즈를 옆에 붙이면 확률이 세 배.' },
+  { t:'📦 밀수 — 쌓아뒀다 한 번에', lv:'보통 · 천장 높음',
+    ids:['cargo','tool','hook','mastercode'],
+    d:'📦 미확인 화물은 <b>열기 전까지 0</b>이지만 등장할 때마다 안이 +12씩 불어난다. 🪝 견인 갈고리가 더 불려주고, 🛠️ 만능공구나 🗝️ 마스터 코드가 열어서 한 번에 회수한다. 오래 참을수록 커지는 덱.' },
+  { t:'🧲 뭉치기 — 자기 코일', lv:'쉬움 · 천장 중간',
+    ids:['coil','anchor','culture','purge'],
+    d:'인접한 코일 1개당 +2. 코일만 모으면 판에서 서로가 서로를 올려주고 순도 배수까지 붙는다. ⚓ 자기 앵커가 인접 코일 1개당 +9로 정점을 찍어준다.' },
+  { t:'🔭 다양성 — 순도의 정반대', lv:'어려움 · 천장 높음',
+    ids:['scope','prism','lens','fuel'],
+    d:'🔭 관측 망원경은 판에 깔린 <b>종류 수</b> 1가지당 +4를 준다. 🌈 스펙트럼은 종류가 12가지 이상이면 총합을 2배. 순도 배수를 통째로 포기하는 대신 잡다하게 채우는 유일한 길.' },
+];
+
+const GUIDE_PAGES = [
+  { k:'흐름', t:'한 판이 어떻게 굴러가나', html: () => `
+    <p class="lead">레버를 당겨 산소를 벌고, 다섯 번마다 생명유지장치에 산소를 뺏긴다. 못 대면 표류.</p>
+    <h4>1 · 레버를 당긴다</h4>
+    <p>화물칸에 실린 심볼이 20칸에 <b>무작위로</b> 깔린다. 화물칸이 20장보다 적으면 빈칸이 생긴다.</p>
+    <h4>2 · 칸마다 값이 매겨진다</h4>
+    <p>왼쪽 위부터 순서대로 계산되고, 그 합이 산소가 된다. 계산 중인 칸과 <b>그 칸이 실제로 값에 관여시킨 심볼</b>이 같이 빛나니까 눈으로 따라가면 된다.</p>
+    <h4>3 · 스핀마다 심볼 하나</h4>
+    <p>후보 4장 중 하나를 화물칸에 싣는다. 마음에 안 들면 넘겨도 된다 — <b>넘기는 게 이득일 때가 많다.</b></p>
+    <h4>4 · 다섯 번 돌리면 정산</h4>
+    <p>보유 산소에서 그 구역 소모량을 뺀다. 모자라면 그 자리에서 끝. 넘기면 화물칸에서 <b>한 장을 버릴 수 있다.</b></p>
+    <h4>점수</h4>
+    <p><b>점수 = 지금까지 낸 소모량 합계 + 남은 산소.</b> 깊이 갈수록 소모량이 커지니, 멀리 가는 것 자체가 점수다.</p>` },
+
+  { k:'점수 계산', t:'산소는 이렇게 쌓인다', html: () => `
+    <p class="lead">칸 값을 다 더한 뒤, 배수 두 개가 차례로 곱해진다.</p>
+    <div class="calc">
+      <div class="row"><span>칸 값의 합 (+ 직접 획득)</span><span>320</span></div>
+      <div class="row"><span>× 스핀 배수 &nbsp;⚛️ 임계 반응 · 🌈 스펙트럼 (최대 3배)</span><span>× 2.0</span></div>
+      <div class="row"><span>× 순도 배수 &nbsp;판이 한 종류에 가까울수록 (최대 3배)</span><span>× 1.7</span></div>
+      <div class="row sum"><span>이번 스핀 산소</span><span>1,088</span></div>
+    </div>
+    <p>배수는 이 둘뿐이고 각각 천장이 있다. 그래서 아무리 쌓아도 <b>지수로 터지지 않는다</b> — 대신 칸 값 자체를 키우는 게 정공법이다.</p>
+    <h4>칸 값이 커지는 세 가지 길</h4>
+    <table>
+      <tr><th>길</th><th>예</th><th>성격</th></tr>
+      <tr><td>기본값이 큰 심볼</td><td>${symRow(['ore','fuel','bloom'])}</td><td>조건 없이 안정적. 대신 천장이 낮다</td></tr>
+      <tr><td>옆칸을 보는 시너지</td><td>${symRow(['ration','coil','bot'])}</td><td>배치 운을 타지만 여러 칸이 동시에 오른다</td></tr>
+      <tr><td>쌓이거나 자라는 것</td><td>${symRow(['hydro','cargo','turtle'])}</td><td>초반엔 약하고 오래 들고 있어야 값이 된다</td></tr>
+    </table>` },
+
+  { k:'심볼 읽기', t:'카드에 적힌 걸 읽는 법', html: () => `
+    <p class="lead">심볼을 고를 때 볼 건 네 가지다.</p>
+    <h4>① 기본 O₂</h4>
+    <p>아무 조건 없이 그 칸이 내는 값. ${symChip('ore')}는 12, ${symChip('solar')}는 0이다 — 0이라고 나쁜 게 아니라 <b>조건이 붙어 있다</b>는 뜻.</p>
+    <h4>② 조건의 사거리</h4>
+    <table>
+      <tr><th>표시</th><th>뜻</th></tr>
+      <tr><td>⬚ 인접 8칸</td><td>대각선 포함해서 붙어 있는 칸. 배치 운을 가장 많이 탄다</td></tr>
+      <tr><td>➕ 같은 행·열</td><td>가로세로 한 줄 전체. 인접보다 잘 맞는다</td></tr>
+      <tr><td>🗺️ 판 전체</td><td>어디 깔리든 상관없다. 운이 거의 안 낀다</td></tr>
+      <tr><td>📦 화물칸</td><td>판에 안 깔려도 <b>들고만 있으면</b> 적용된다</td></tr>
+    </table>
+    <h4>③ 엮이는 심볼</h4>
+    <p>카드 아래 줄에 이모지로 뜬다. ${symChip('ration')}를 고르면 ${symRow(['water','crew'])}가 같이 표시되고, 자기 이모지가 <b>금테로</b> 뜨면 ${symChip('coil')}처럼 같은 심볼끼리 뭉칠수록 강해진다는 뜻.</p>
+    <h4>④ 뱃지</h4>
+    <p>판 위 심볼 왼쪽 위에 붙는 작은 글자. ${symChip('hydro')}의 <b>+3</b>은 지금까지 자란 정도, ${symChip('larva')}의 <b>2회</b>는 부화까지 남은 등장 횟수, ${symChip('bud')}의 <b>☀️4</b>는 남은 햇빛 횟수다.</p>` },
+
+  { k:'순도', t:'순도 — 덱을 몰수록 커진다', html: () => `
+    <p class="lead">판에서 <b>가장 많이 깔린 한 종류의 비율</b>로 스핀 총합에 배수가 붙는다.</p>
+    <table>
+      <tr><th>가장 많은 종류의 비율</th><th>배수</th></tr>
+      ${PURITY.map(([r,m]) => `<tr><td>${Math.round(r*100)}% 이상</td><td class="num">×${m}</td></tr>`).join('')}
+      <tr><td>그 미만</td><td class="num">×1</td></tr>
+    </table>
+    <p>판에 <b>${PURITY_MIN}개 미만</b>이 깔려 있으면 배수가 안 붙는다 — 화물칸을 세 장까지 줄여서 100%를 먹는 걸 막으려고.</p>
+    <h4>왜 있냐면</h4>
+    <p>이게 없으면 매 픽에서 "그냥 제일 센 거"를 집는 게 항상 정답이 된다. 순도가 있으면 곁가지를 하나 집을 때마다 <b>눈에 보이는 대가</b>를 치른다. 20칸 중 15장이 같으면 ×1.7인데, 다른 걸 세 장 섞으면 ×1.4로 떨어진다.</p>
+    <h4>몰아가는 두 심볼</h4>
+    <p>${symChip('culture')} 인접한 심볼 중 화물칸에 가장 많은 종류를 하나 더 만든다 — <b>늘리는 쪽</b><br>
+       ${symChip('purge')} 판에 3개 이하로 깔린 종류를 화물칸에서 영구히 버린다 — <b>쳐내는 쪽</b></p>
+    <p>정반대 축도 있다. ${symChip('scope')}는 판의 <b>종류 수</b>로 값을 내고 ${symChip('prism')}은 종류가 많을수록 총합을 2배로 만든다. 순도를 포기해야 성립한다.</p>` },
+
+  { k:'정족수', t:'정족수 — 고점 덱의 문턱', html: () => `
+    <p class="lead">천장이 높은 심볼은 <b>화물칸에 몇 장 모여야</b> 제 값이 나온다. 그 전엔 있으나 마나다.</p>
+    <table>
+      <tr><th>심볼</th><th>정족수</th><th>완성</th><th>문턱 아래에선</th></tr>
+      ${Object.keys(SYMBOLS).filter(id => SYMBOLS[id].quorum).map(id => {
+        const y = SYMBOLS[id];
+        return `<tr><td>${y.e} ${y.n}</td><td class="num">${y.quorum}장</td><td class="num">${y.done || '—'}장</td><td>거의 무효</td></tr>`;
+      }).join('')}
+    </table>
+    <p>그래서 <b>센 걸 서너 개 섞어 담는 게 제일 나쁘다.</b> 하나도 문턱을 못 넘어서 전부 무효가 된다. 한 종류로 밀거나, 아예 안정적인 심볼로 가거나 둘 중 하나다.</p>
+    <h4>모으는 요령</h4>
+    <p>화물칸에 <b>이미 있는 심볼은 후보에 더 자주 나온다.</b> 문턱이 걸린 심볼은 특히 세게 끌어주니, 한 장 잡았으면 그 뒤로는 훨씬 빨리 모인다. 선택 카드에 <b>정족수 3/4</b> 진행도가 같이 뜬다.</p>
+    <p>다 채우면 초록, 완성까지 가면 분홍으로 바뀐다.</p>` },
+
+  { k:'덱 압축', t:'안 고르는 것도 수다', html: () => `
+    <p class="lead">화물칸이 클수록 손해다. 이 게임에서 <b>건너뛰기는 소극적인 선택이 아니라 적극적인 전략</b>이다.</p>
+    <h4>판은 20칸뿐이다</h4>
+    <p>스핀할 때 화물칸에서 20장을 뽑아 깔기 때문에, 화물칸이 20장을 넘으면 <b>아끼는 심볼이 판에 안 나오는 스핀</b>이 생긴다.</p>
+    <table>
+      <tr><th>화물칸</th><th>한 장이 판에 나올 확률</th><th>뜻</th></tr>
+      <tr><td class="num">20장</td><td class="num">100%</td><td>매 스핀 전부 나온다. 계산이 예측 가능해진다</td></tr>
+      <tr><td class="num">30장</td><td class="num">67%</td><td>핵심 심볼이 세 번에 한 번은 빠진다</td></tr>
+      <tr><td class="num">40장</td><td class="num">50%</td><td>절반은 놀고 있다. 순도도 같이 무너진다</td></tr>
+      <tr><td class="num">60장</td><td class="num">33%</td><td>무엇을 모았는지 의미가 없어진다</td></tr>
+    </table>
+    <h4>순도까지 같이 깎인다</h4>
+    <p>잡다한 심볼을 계속 받으면 판에 종류가 늘어나 <b>순도 배수가 통째로 사라진다.</b> 20칸 중 15장이 같으면 ×1.7인데, 곁가지 셋만 섞여도 ×1.4로 내려간다. 눈앞의 카드 한 장이 배수를 깎는 값보다 큰지 따져야 한다.</p>
+    <h4>그래서 이렇게</h4>
+    <p><b>축을 정한 뒤에는 축 밖 카드를 대부분 넘긴다.</b> 후보 4장이 전부 남이면 그냥 넘기는 게 이득인 경우가 많다. 구역마다 주는 <b>정비 한 장</b>과 ${symChip('purge')} 폐기 슈트를 같이 쓰면 화물칸을 20장 근처로 눌러둘 수 있다.</p>
+    <p>반대로 초반 1~3구역엔 화물칸이 12장뿐이라 <b>빈칸이 많다.</b> 이때는 웬만하면 받아서 20장 근처까지 채우는 게 낫다 — ${symChip('solar')} 태양광 패널처럼 빈칸을 좋아하는 심볼이 있는 게 아니라면.</p>` },
+
+  { k:'예시 덱', t:'이렇게들 굴린다', html: () => GUIDE_DECKS.map(d => `
+    <div class="deckcard">
+      <div class="ttl">${d.t}</div>
+      <div class="meta">${d.lv}</div>
+      <div>${symRow(d.ids)}</div>
+      <p style="margin-top:8px">${d.d}</p>
+    </div>`).join('') },
+
+  { k:'처음이라면', t:'처음 몇 판은 이렇게', html: () => `
+    <h4>1 · 1~3구역은 그냥 센 걸 집어라</h4>
+    <p>초반엔 희귀·전설이 거의 안 나온다. 살아남는 게 먼저라 기본값이 크거나 이미 있는 심볼과 엮이는 걸 고르면 된다.</p>
+    <h4>2 · 4구역쯤 방향을 정해라</h4>
+    <p>그때까지 손에 들어온 걸 보고 축을 하나 정한다. 정하고 나면 <b>축 밖은 넘기는 게 이득</b>이다 — 순도가 깎이니까.</p>
+    <h4>3 · 넘기는 것도 수다</h4>
+    <p>후보 4장이 전부 축 밖이면 <b>그냥 넘겨라.</b> 화물칸이 20장을 넘으면 아끼는 심볼이 판에 안 나오는 스핀이 생기고, 순도 배수도 같이 깎인다. 자세한 건 <b>덱 압축</b> 탭에.</p>
+    <h4>4 · 정비를 아껴 쓰지 마라</h4>
+    <p>구역마다 한 장을 버릴 수 있다. 시작 덱의 ${symRow(['o2','water','ration'])} 같은 것도 방향이 정해졌으면 미련 없이 버려야 순도가 오른다.</p>
+    <h4>5 · 문턱은 두 장째부터 진짜다</h4>
+    <p>${symChip('wormhole')} 같은 걸 한 장 잡았으면, 그때부터는 후보에 훨씬 자주 나온다. 밀어볼 값어치가 있는지 <b>정족수 진행도</b>를 보고 판단하면 된다.</p>
+    <h4>조작</h4>
+    <table>
+      <tr><td><b>Space</b></td><td>레버 당기기 / 선택지에서 고르기 (건너뛰기 포함)</td></tr>
+      <tr><td><b>← → ↑ ↓</b></td><td>선택지 이동</td></tr>
+      <tr><td><b>C</b></td><td>화물칸 열고 닫기</td></tr>
+      <tr><td><b>H</b></td><td>이 안내 열기</td></tr>
+    </table>` },
+];
+
+let guidePage = 0;
+function renderGuide(){
+  $('#gtabs').innerHTML = GUIDE_PAGES.map((p,i) =>
+    `<button data-i="${i}" class="${i===guidePage?'on':''}">${p.k}</button>`).join('');
+  const p = GUIDE_PAGES[guidePage];
+  $('#gbody').innerHTML = `<h3>${p.t}</h3>` + p.html();
+  $('#gbody').scrollTop = 0;
+}
+$('#gtabs').onclick = ev => {
+  const b = ev.target.closest('button[data-i]');
+  if (!b) return;
+  guidePage = +b.dataset.i; renderGuide(); beep(700, .03, 'sine', .03);
+};
+
+const guide = $('#guide');
+function toggleGuide(on){
+  const next = on === undefined ? !guide.classList.contains('on') : on;
+  if (next){
+    renderGuide();
+    guide.classList.add('on');
+    requestAnimationFrame(() => guide.classList.add('show'));
+  } else {
+    guide.classList.remove('show');
+    setTimeout(() => guide.classList.remove('on'), 200);
+  }
+}
+$('#guideBtn').onclick   = () => toggleGuide(true);
+$('#guideClose').onclick = () => toggleGuide(false);
+$('#guideSkip').onclick  = () => toggleGuide(false);
+guide.onclick = ev => { if (ev.target === guide) toggleGuide(false); };
+
+// 처음 온 사람에게는 알아서 띄운다
+if (!localStorage.getItem('oxy.seenGuide')){
+  localStorage.setItem('oxy.seenGuide', '1');
+  setTimeout(() => toggleGuide(true), 500);
+}
+
 // ══════════════════════════════════ 입력
 /* 화물칸 서랍. 슬롯머신을 화면 정중앙에 두려고 상시 패널에서 뺐음 */
 const cargo = $('#cargo');
@@ -1461,7 +1738,8 @@ $('#muteBtn').onclick  = ev => {
 document.addEventListener('keydown', ev => {
   if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) pullLever(); }
   if (ev.key === 'c' || ev.key === 'C') toggleCargo();
-  if (ev.key === 'Escape') toggleCargo(false);
+  if (ev.key === 'h' || ev.key === 'H') toggleGuide();
+  if (ev.key === 'Escape'){ toggleGuide(false); toggleCargo(false); }
 });
 
 newGame();
