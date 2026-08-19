@@ -21,6 +21,16 @@ var LARVA_HATCH = 3;      // 외계 알이 부화하기까지 등장해야 하�
 var HYDRO_BUD = 4;        // 수경재배가 꽃봉오리로 맺히는 지점 (여기까진 물로)
 var HYDRO_MAX = 8;        // 꽃봉오리가 꽃으로 피는 지점 (여기부턴 태양광으로)
 var COST_CUT_MAX = 0.30;  // 소모량 할인의 합계 천장
+/* 뽑기 편향 세기 — 화물칸에 쌓아둔 심볼이 장당 이만큼 더 자주 나온다.
+   덱을 미는 선택이 스스로를 강화하게 만드는 값이라, 정족수 도달률을
+   좌우하는 가장 예민한 손잡이임 (sim/human.js 로 재서 정함) */
+var DRAW_BIAS = 0.4;
+/* 정족수가 걸린 심볼은 더 세게 끌어준다. 판 하나가 40~50픽인데 특정 희귀는
+   그중 두세 번 뜨는 게 고작이라, 일반 편향만으론 문턱을 영영 못 넘는다.
+   "한 장 잡으면 그 뒤로는 잘 나온다"가 있어야 계획이 계획으로 성립함.
+   sim/human.js 로 1.2 / 2.5 / 4 / 5 / 7 을 재봤고, 5.0에서
+   정족수 도달 11% · 완성 5%로 "드물지만 노려볼 만한" 선이 나왔다 */
+var QUORUM_BIAS = 5.0;
 var SPIN_MUL_CAP = 3;
 /* 순도 배수 — 판 20칸 중 "가장 많이 깔린 한 종류"의 개수로 스핀 총합에 배수.
    덱을 한 종류로 모을수록 커진다. 이게 이 게임의 최고 고점이고,
@@ -692,7 +702,9 @@ function rollChoices(n, rnd, round, deck){
   var pool = [];
   for (var id in SYMBOLS){
     if (SYMBOLS[id].noOffer) continue;
-    var w = weightFor(SYMBOLS[id].r, round) * (1 + 0.4 * Math.min(own[id]||0, 7.5));
+    var have = own[id] || 0;
+    var bias = SYMBOLS[id].quorum ? QUORUM_BIAS : DRAW_BIAS;   // 문턱 심볼은 훨씬 세게 끌어줌
+    var w = weightFor(SYMBOLS[id].r, round) * (1 + bias * Math.min(have, 7.5));
     w = Math.round(w);
     for (var i=0;i<w;i++) pool.push(id);
   }
@@ -710,7 +722,7 @@ var ENGINE = {
   RARITY:RARITY, SYMBOLS:SYMBOLS, START_DECK:START_DECK, COSTS:COSTS, HYDRO_BUD:HYDRO_BUD, HYDRO_MAX:HYDRO_MAX,
   costFor:costFor, spinsFor:spinsFor, mkEntry:mkEntry, baseOf:baseOf,
   shuffle:shuffle, makeCells:makeCells, fillCells:fillCells, resolve:resolve,
-  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor, relatedOf:relatedOf, purityMul:purityMul, PURITY:PURITY, PURITY_MIN:PURITY_MIN,
+  removeFromDeck:removeFromDeck, costCutOf:costCutOf, rollChoices:rollChoices, weightFor:weightFor, relatedOf:relatedOf, purityMul:purityMul, setDrawBias:function(v){ DRAW_BIAS = v; }, setQuorumBias:function(v){ QUORUM_BIAS = v; }, PURITY:PURITY, PURITY_MIN:PURITY_MIN,
   ductChain:ductChain,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
