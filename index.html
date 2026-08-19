@@ -572,6 +572,33 @@
   .gfoot b{color:var(--fg)}
   .gbody{padding-bottom:64px}
   @media (max-width:760px){ .gfoot{position:static; padding:12px 16px; justify-content:center; flex-wrap:wrap} }
+  /* 실습 판 */
+  .dpick{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:0 0 14px}
+  .dpick button{padding:7px 13px; border-radius:9px; font-size:12px; font-weight:700}
+  .dpick button.on{background:linear-gradient(180deg,#2fd0ea,#1183ad); border-color:#2fd0ea; color:#04222e}
+  .dpick .dspacer{flex:1}
+  .dgrid{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:16px;
+    background:linear-gradient(180deg,#241a52,#150f36); border:1px solid rgba(186,124,255,.4);
+    border-radius:12px; padding:9px;
+  }
+  .dcell{
+    position:relative; aspect-ratio:1; border-radius:8px; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    background:rgba(38,46,66,.85); border:1px solid var(--line); font-style:normal;
+    transition:.16s;
+  }
+  .dcell.empty{background:rgba(22,28,45,.5)}
+  .dcell b{font-size:22px; line-height:1}
+  .dcell u{text-decoration:none; font-size:10px; font-weight:800; color:var(--dim); font-variant-numeric:tabular-nums}
+  .dcell.on{
+    background:rgba(111,220,255,.18); border-color:var(--o2);
+    box-shadow:0 0 0 2px var(--o2), 0 0 18px rgba(111,220,255,.6); transform:scale(1.06);
+  }
+  .dcell.on u{color:var(--o2)}
+  .dcell.rel{background:rgba(111,220,255,.09); border-color:rgba(111,220,255,.55)}
+  .dnarr{min-height:150px}
+
   .gclose{position:absolute; right:12px; top:12px; padding:6px 11px; border-radius:9px; font-size:14px; line-height:1}
   @media (max-width:760px){
     .gbox{flex-direction:column; height:92vh}
@@ -1548,7 +1575,11 @@ const GUIDE_PAGES = [
     <h4>4 · 다섯 번 돌리면 정산</h4>
     <p>보유 산소에서 그 구역 소모량을 뺀다. 모자라면 그 자리에서 끝. 넘기면 화물칸에서 <b>한 장을 버릴 수 있다.</b></p>
     <h4>점수</h4>
-    <p><b>점수 = 지금까지 낸 소모량 합계 + 남은 산소.</b> 깊이 갈수록 소모량이 커지니, 멀리 가는 것 자체가 점수다.</p>` },
+    <p><b>점수 = 지금까지 낸 소모량 합계 + 남은 산소.</b> 깊이 갈수록 소모량이 커지니, 멀리 가는 것 자체가 점수다.</p>
+    <p style="margin-top:18px">
+      <button data-goto="실습" class="pill cyan">▶ 예시 한 판 따라가기</button>
+      <span style="margin-left:10px; color:var(--dim); font-size:12px">
+        진짜 판 두 개를 칸 하나씩 계산해본다</span></p>` },
 
   { k:'점수 계산', t:'산소는 이렇게 쌓인다', html: () => `
     <p class="lead">칸 값을 다 더한 뒤, 배수 두 개가 차례로 곱해진다.</p>
@@ -1613,6 +1644,8 @@ const GUIDE_PAGES = [
     <p>화물칸에 <b>이미 있는 심볼은 후보에 더 자주 나온다.</b> 문턱이 걸린 심볼은 특히 세게 끌어주니, 한 장 잡았으면 그 뒤로는 훨씬 빨리 모인다. 선택 카드에 <b>정족수 3/4</b> 진행도가 같이 뜬다.</p>
     <p>다 채우면 초록, 완성까지 가면 분홍으로 바뀐다.</p>` },
 
+  { k:'실습', t:'', demo:true },
+
   { k:'덱 압축', t:'안 고르는 것도 수다', html: () => `
     <p class="lead">화물칸이 클수록 손해다. 이 게임에서 <b>건너뛰기는 소극적인 선택이 아니라 적극적인 전략</b>이다.</p>
     <h4>판은 20칸뿐이다</h4>
@@ -1658,12 +1691,142 @@ const GUIDE_PAGES = [
     </table>` },
 ];
 
+
+// ── 실습: 실제 엔진으로 계산해서 한 단계씩 보여준다 (숫자가 설명용 가짜가 아님)
+const DEMO = {
+  mixed: {
+    name:'잡탕 덱', why:'시너지는 잘 붙었는데 종류가 여러 가지라 순도 배수가 없다',
+    layout:['ration','water','ration','coil','coil',
+            'water','crew','water','coil','part',
+            'bot','oil','o2','solar','duct',
+            'duct','duct','ore','o2','o2'],
+    extra:[] },
+  mono: {
+    name:'통일 덱', why:'전부 한 종류라 순도가 100% — 총합에 배수가 그대로 곱해진다',
+    layout:new Array(20).fill('o2'),
+    extra:new Array(14).fill('o2') },
+};
+
+/* 고정 배치로 판을 만들고 진짜 resolve를 돌린다. 난수는 0.5로 묶어 결과를 고정 */
+function runDemo(key){
+  const d = DEMO[key];
+  const cells = makeCells(), deck = [];
+  d.layout.forEach((id, i) => {
+    if (!id) return;
+    const en = mkEntry(id);
+    deck.push(en);
+    cells[i].entry = en;
+    cells[i].val = baseOf(en);
+  });
+  d.extra.forEach(id => deck.push(mkEntry(id)));
+  const base = cells.map(c => c.entry ? baseOf(c.entry) : 0);
+  const st = { cells, deck, debt:{ mul:1, add:0 } };
+  const res = resolve(st, () => 0.5);
+  const steps = cells.filter(c => c.entry && !c.dead && c.val !== 0);
+  return { d, cells, deck, res, steps, base };
+}
+
+let demoKey = 'mixed', demoStep = -1, demoCache = null;
+
+function demoGrid(){
+  const { cells, base } = demoCache;
+  const cur = demoStep >= 0 && demoStep < demoCache.steps.length ? demoCache.steps[demoStep] : null;
+  const lit = {};
+  if (cur){ lit[cur.i] = 1; cur.links.forEach(l => { lit[l.i] = 2; }); }
+  return '<div class="dgrid">' + cells.map(c => {
+    if (!c.entry) return '<i class="dcell empty"></i>';
+    const on  = cur && c.i === cur.i;
+    const rel = !on && lit[c.i] === 2;
+    const shown = demoStep < 0 ? base[c.i] : c.val;
+    return `<i class="dcell${on?' on':''}${rel?' rel':''}">
+        <b>${SYMBOLS[c.entry.id].e}</b>
+        <u>${shown > 0 ? '+' : ''}${shown}</u></i>`;
+  }).join('') + '</div>';
+}
+
+function demoNarr(){
+  const { d, res, steps, deck, base, cells } = demoCache;
+  if (demoStep < 0){
+    return `<p><b>${d.name}</b> — ${d.why}</p>
+      <p>지금 보이는 숫자는 <b>기본값</b>이다. 아직 아무 효과도 계산되지 않았다.
+         <b>계산 시작</b>을 누르면 왼쪽 위 칸부터 하나씩 따라간다.</p>`;
+  }
+  if (demoStep < steps.length){
+    const c = steps[demoStep], y = SYMBOLS[c.entry.id];
+    const b = base[c.i], gain = c.val - b;
+    const links = c.links.filter(l => l.entry).map(l => SYMBOLS[l.entry.id].e).join(' ');
+    return `<p><b>${y.e} ${y.n}</b> — ${y.d}</p>
+      <div class="calc">
+        <div class="row"><span>기본값</span><span>${b}</span></div>
+        ${gain !== 0 ? `<div class="row"><span>효과로 ${gain > 0 ? '오름' : '깎임'}</span><span>${gain > 0 ? '+' : ''}${gain}</span></div>` : ''}
+        <div class="row sum"><span>이 칸의 값</span><span>${c.val}</span></div>
+      </div>
+      ${links ? `<p style="color:var(--dim)">같이 빛나는 칸 ${links} — <b>이 칸의 값에 실제로 관여한 심볼</b>이다.
+        조회만 하고 조건이 안 맞았으면 빛나지 않는다.</p>` : ''}
+      <p style="color:var(--dim)">${demoStep+1} / ${steps.length}번째 칸</p>`;
+  }
+  const sum = steps.reduce((a,c) => a + c.val, 0);
+  const kinds = {};
+  cells.forEach(c => { if (c.entry) kinds[c.entry.id] = 1; });
+  return `<p><b>${d.name}</b>의 한 스핀이 끝났다.</p>
+    <div class="calc">
+      <div class="row"><span>칸 값을 전부 더하면</span><span>${sum}</span></div>
+      <div class="row"><span>순도 ${res.purityTop}/${res.filled} (${Math.round(res.purityTop/res.filled*100)}%)</span><span>× ${res.purity}</span></div>
+      <div class="row sum"><span>이번 스핀 산소</span><span>${res.total}</span></div>
+    </div>
+    <p>화물칸 ${deck.length}장 · 판에 깔린 종류 ${Object.keys(kinds).length}가지.
+       ${res.purity > 1
+         ? `한 종류로 몰았더니 배수가 <b>×${res.purity}</b> 붙어서, 칸 값 하나하나는 소박한데 총합이 크게 벌어졌다.`
+         : `종류가 흩어져 있어 <b>순도 배수가 없다.</b> 시너지를 아무리 잘 붙여도 배수 없이는 한계가 있다.`}</p>
+    <p style="color:var(--dim)">위에서 다른 덱을 눌러 같은 계산을 비교해보면 차이가 바로 보인다.</p>`;
+}
+
+function renderDemo(){
+  if (!demoCache || demoCache.key !== demoKey){
+    demoCache = runDemo(demoKey); demoCache.key = demoKey; demoStep = -1;
+  }
+  const last = demoStep >= demoCache.steps.length;
+  $('#gbody').innerHTML = `<h3>실습 — 한 스핀을 손으로 따라가기</h3>
+    <p class="lead">아래 판은 <b>실제 엔진으로 계산</b>한다. 설명용으로 지어낸 숫자가 아니다.</p>
+    <div class="dpick">
+      ${Object.keys(DEMO).map(k =>
+        `<button data-demo="${k}" class="${k===demoKey?'on':''}">${DEMO[k].name}</button>`).join('')}
+      <span class="dspacer"></span>
+      <button data-demo-step="-1">처음부터</button>
+      <button data-demo-step="1"${last?' disabled':''}>${demoStep < 0 ? '계산 시작' : '다음 칸'}</button>
+      <button data-demo-step="99"${last?' disabled':''}>끝까지</button>
+    </div>
+    ${demoGrid()}
+    <div class="dnarr">${demoNarr()}</div>`;
+}
+
+$('#gbody').addEventListener('click', ev => {
+  const go = ev.target.closest('[data-goto]');
+  if (go){
+    const i = GUIDE_PAGES.findIndex(p => p.k === go.dataset.goto);
+    if (i >= 0){ guidePage = i; renderGuide(); beep(760,.04,'sine',.04); }
+    return;
+  }
+  const pick = ev.target.closest('[data-demo]');
+  if (pick){ demoKey = pick.dataset.demo; demoCache = null; renderDemo(); beep(700,.03,'sine',.03); return; }
+  const step = ev.target.closest('[data-demo-step]');
+  if (step){
+    const v = +step.dataset.demoStep;
+    if (v === -1) demoStep = -1;
+    else if (v === 99) demoStep = demoCache.steps.length;
+    else demoStep = Math.min(demoStep + 1, demoCache.steps.length);
+    renderDemo();
+    beep(520 + Math.max(0,demoStep)*12, .03, 'sine', .03);
+  }
+});
+
 let guidePage = 0;
 function renderGuide(){
   $('#gtabs').innerHTML = GUIDE_PAGES.map((p,i) =>
     `<button data-i="${i}" class="${i===guidePage?'on':''}">${p.k}</button>`).join('');
   const p = GUIDE_PAGES[guidePage];
-  $('#gbody').innerHTML = `<h3>${p.t}</h3>` + p.html();
+  if (p.demo) renderDemo();
+  else $('#gbody').innerHTML = `<h3>${p.t}</h3>` + p.html();
   $('#gbody').scrollTop = 0;
 }
 $('#gtabs').onclick = ev => {
