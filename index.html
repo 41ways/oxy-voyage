@@ -1171,7 +1171,9 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
       <div class="foot">${buttons.map((b,i)=>`<button data-b="${i}">${b.label}</button>`).join('')}</div>
     </div>`;
     ov.classList.add('on');
-    requestAnimationFrame(() => { ov.classList.add('show'); if (onOpen) onOpen(); });
+    void ov.offsetWidth;               // 한 프레임 기다리는 대신 리플로우를 강제 —
+    ov.classList.add('show');          // 배경 탭에서는 rAF가 아예 안 돌아 유령 상태가 됨
+    if (onOpen) onOpen();
     // 떠오르는 연출이 끝나면 애니메이션을 놓아줘서 hover가 살아나게
     ov.querySelectorAll('.pickcard').forEach(el =>
       el.addEventListener('animationend', () => el.classList.add('ready'), { once:true }));
@@ -1890,15 +1892,18 @@ $('#gbody').addEventListener('click', ev => {
 });
 
 const guide = $('#guide');
+let guideTimer = 0;
 function toggleGuide(on){
   const next = on === undefined ? !guide.classList.contains('on') : on;
+  clearTimeout(guideTimer); guideTimer = 0;      // 닫는 중이었으면 취소하고 다시 연다
   if (next){
     renderGuide();
     guide.classList.add('on');
-    requestAnimationFrame(() => guide.classList.add('show'));
+    void guide.offsetWidth;            // 리플로우를 강제해야 트랜지션이 탄다
+    guide.classList.add('show');
   } else {
     guide.classList.remove('show');
-    setTimeout(() => guide.classList.remove('on'), 200);
+    guideTimer = setTimeout(() => { guide.classList.remove('on'); guideTimer = 0; }, 200);
     if (guideFromHome){ guideFromHome = false; showHome(true); }
   }
 }
@@ -1916,17 +1921,23 @@ let guideFromHome = false;
 function inProgress(){
   return game && (game.round > 1 || game.paidTotal > 0 || game.spinsLeft < spinsFor(1));
 }
+let homeTimer = 0;
 function showHome(on){
+  /* 닫는 중이면 예약된 뒷정리를 취소하고 연다.
+     안 그러면 280ms 뒤에 타이머가 터져 방금 연 화면의 on을 떼어버린다
+     (display:none인데 show만 남아 아무것도 안 보이는 상태가 됨) */
+  clearTimeout(homeTimer); homeTimer = 0;
   if (on){
     $('#hBest').textContent = best();
     $('#hResume').style.display = inProgress() ? '' : 'none';
     $('#hStart').textContent = inProgress() ? '↻ 새 항해' : '▶ 항해 시작';
     $('#hMute').textContent = muted ? '🔇 소리 켜기' : '🔊 소리 끄기';
     home.classList.add('on');
-    requestAnimationFrame(() => home.classList.add('show'));
+    void home.offsetWidth;
+    home.classList.add('show');
   } else {
     home.classList.remove('show');
-    setTimeout(() => home.classList.remove('on'), 280);
+    homeTimer = setTimeout(() => { home.classList.remove('on'); homeTimer = 0; }, 280);
   }
 }
 $('#hResume').onclick = () => showHome(false);
