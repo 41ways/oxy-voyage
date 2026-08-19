@@ -1847,6 +1847,14 @@ $('#guideClose').onclick = () => toggleGuide(false);
 $('#guideSkip').onclick  = () => toggleGuide(false);
 guide.onclick = ev => { if (ev.target === guide) toggleGuide(false); };
 
+/* 처음 온 사람에게는 알아서 띄운다. 한 번 보고 나면 다시 안 뜬다 —
+   열쇠를 갈아둔 건 안내를 새로 짰기 때문 (예전에 본 사람에게도 한 번은 보여줌) */
+if (!localStorage.getItem('oxy.guide.v2')){
+  localStorage.setItem('oxy.guide.v2', '1');
+  guidePage = 0;
+  setTimeout(() => toggleGuide(true), 450);
+}
+
 // ══════════════════════════════════ 입력
 /* 화물칸 서랍. 슬롯머신을 화면 정중앙에 두려고 상시 패널에서 뺐음 */
 const cargo = $('#cargo');
