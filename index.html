@@ -512,6 +512,43 @@
   }
   @keyframes lossIn{ from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:none} }
 
+  /* ── 홈 화면 */
+  .home{
+    position:fixed; inset:0; z-index:70; display:none;
+    align-items:center; justify-content:center; padding:24px;
+    background:radial-gradient(ellipse 70% 60% at 50% 45%, rgba(20,14,48,.72), rgba(4,6,16,.93));
+    backdrop-filter:blur(3px);
+    opacity:0; transition:opacity .28s;
+  }
+  .home.on{display:flex}
+  .home.show{opacity:1}
+  .hbox{text-align:center; max-width:560px; animation:riseIn .5s cubic-bezier(.2,.85,.3,1) both}
+  .hsign{display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px}
+  .hsign .deco{font-size:36px; filter:drop-shadow(0 0 14px rgba(120,200,255,.8))}
+  .hbox h1{
+    margin:0; font-size:40px; font-weight:900; line-height:.96; letter-spacing:8px; color:#eafaff;
+    text-shadow:0 0 8px #fff, 0 0 22px #6fdcff, 0 0 48px #3ad7ff, 0 0 80px rgba(176,108,255,.9);
+  }
+  .hbox h1 b{
+    display:block; font-size:46px; letter-spacing:11px; color:#ffe6ff;
+    text-shadow:0 0 8px #fff, 0 0 24px #ff5fd2, 0 0 54px #b06cff;
+  }
+  .htag{margin:18px 0 0; font-size:13px; line-height:1.9; color:#bcc6dc}
+  .hbest{margin:20px 0 0; font-size:12px; color:var(--dim); letter-spacing:1px; font-variant-numeric:tabular-nums}
+  .hbest b{font-size:22px; color:var(--good); margin-left:6px; text-shadow:0 0 14px rgba(110,231,154,.6)}
+  .hbtns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:24px}
+  .hbtn{padding:13px 26px; border-radius:999px; font-size:14px; font-weight:800; letter-spacing:.5px}
+  .hbtn.go{
+    background:linear-gradient(180deg,#2fd0ea,#1183ad); border-color:#2fd0ea; color:#03222e;
+    box-shadow:0 0 20px rgba(58,215,255,.5), inset 0 1px 0 rgba(255,255,255,.55);
+  }
+  .hbtn.go:hover{filter:brightness(1.12)}
+  .hbtn.sub{background:rgba(36,26,82,.85); border-color:rgba(186,124,255,.55)}
+  .hbtn.sub:hover{border-color:var(--o2)}
+  .hhint{margin:20px 0 0; font-size:11px; color:var(--dim)}
+  .hhint b{color:var(--o2)}
+  #homeBtn{padding:6px 10px; font-size:14px; line-height:1}
+
   /* ── 처음 보는 사람용 안내 */
   .guide{
     position:fixed; inset:0; z-index:60; display:none;
@@ -646,6 +683,7 @@
       <h1>우주탐험<small>slot roguelike v0.5</small></h1>
       <div class="spacer"></div>
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
+      <button id="homeBtn" title="홈으로">🏠</button>
       <button id="guideBtn" title="처음 보는 사람용 안내 (H)">? 도움말</button>
       <button id="muteBtn" title="소리 켜기/끄기">🔊</button>
     </div>
@@ -715,6 +753,25 @@
       <button id="cargoClose" title="닫기 (C · Esc)">✕</button>
     </div>
     <div class="deck" id="deck"></div>
+  </div>
+</div>
+
+<div id="home" class="home">
+  <div class="hbox">
+    <div class="hsign">
+      <span class="deco">🪐</span>
+      <h1>OXYGEN<b>VOYAGE</b></h1>
+      <span class="deco">🚀</span>
+    </div>
+    <p class="htag">슬롯을 굴려 산소를 만들고, 구역마다 생명유지장치에 산소를 바친다.<br>못 대면 표류 — 얼마나 멀리 갔나가 기록이다.</p>
+    <div class="hbest">최고기록 <b id="hBest">0</b></div>
+    <div class="hbtns">
+      <button id="hResume" class="hbtn go">▶ 계속하기</button>
+      <button id="hStart"  class="hbtn go">▶ 항해 시작</button>
+      <button id="hGuide"  class="hbtn sub">? 튜토리얼</button>
+      <button id="hMute"   class="hbtn sub">🔇 소리</button>
+    </div>
+    <p class="hhint">처음이라면 <b>튜토리얼</b>부터. 안에서 심볼 하나씩 눌러보면 계산이 바로 보인다.</p>
   </div>
 </div>
 
@@ -1094,10 +1151,12 @@ async function gameOver(){
     sub: `${game.round}구역까지 항해 · 점수 ${s}점` + (isNew ? '' : ` · 최고기록 ${b}점`),
     body: `<div style="font-size:13px;color:var(--dim);line-height:1.8">
       누적 소모 ${game.paidTotal} O₂<br>남은 O₂ ${game.coins}<br>화물칸 ${game.deck.length}장</div>`,
-    buttons: [{ label:'다시 출항', value:1 }],
+    buttons: [{ label:'다시 출항', value:1 }, { label:'홈으로', value:2 }],
     onPick: () => null,
+  }).then(v => {
+    newGame();
+    if (v === 2) showHome(true);
   });
-  newGame();
 }
 
 // ══════════════════════════════════ 모달
@@ -1840,6 +1899,7 @@ function toggleGuide(on){
   } else {
     guide.classList.remove('show');
     setTimeout(() => guide.classList.remove('on'), 200);
+    if (guideFromHome){ guideFromHome = false; showHome(true); }
   }
 }
 $('#guideBtn').onclick   = () => toggleGuide(true);
@@ -1847,13 +1907,41 @@ $('#guideClose').onclick = () => toggleGuide(false);
 $('#guideSkip').onclick  = () => toggleGuide(false);
 guide.onclick = ev => { if (ev.target === guide) toggleGuide(false); };
 
-/* 처음 온 사람에게는 알아서 띄운다. 한 번 보고 나면 다시 안 뜬다 —
-   열쇠를 갈아둔 건 안내를 새로 짰기 때문 (예전에 본 사람에게도 한 번은 보여줌) */
-if (!localStorage.getItem('oxy.guide.v2')){
-  localStorage.setItem('oxy.guide.v2', '1');
-  guidePage = 0;
-  setTimeout(() => toggleGuide(true), 450);
+// ══════════════════════════════════ 홈 화면
+/* 게임은 뒤에서 이미 초기화돼 있고 홈은 그 위에 덮인 막이다.
+   그래서 "계속하기"는 막을 걷기만 하면 판이 그대로 이어진다 */
+const home = $('#home');
+let guideFromHome = false;
+
+function inProgress(){
+  return game && (game.round > 1 || game.paidTotal > 0 || game.spinsLeft < spinsFor(1));
 }
+function showHome(on){
+  if (on){
+    $('#hBest').textContent = best();
+    $('#hResume').style.display = inProgress() ? '' : 'none';
+    $('#hStart').textContent = inProgress() ? '↻ 새 항해' : '▶ 항해 시작';
+    $('#hMute').textContent = muted ? '🔇 소리 켜기' : '🔊 소리 끄기';
+    home.classList.add('on');
+    requestAnimationFrame(() => home.classList.add('show'));
+  } else {
+    home.classList.remove('show');
+    setTimeout(() => home.classList.remove('on'), 280);
+  }
+}
+$('#hResume').onclick = () => showHome(false);
+$('#hStart').onclick  = () => { newGame(); showHome(false); beep(560,.07,'triangle',.05); };
+$('#hGuide').onclick  = () => { guideFromHome = true; toggleGuide(true); };
+$('#hMute').onclick   = ev => {
+  muted = !muted;
+  localStorage.setItem('oxy.muted', muted ? '1' : '0');
+  $('#muteBtn').textContent = muted ? '🔇' : '🔊';
+  ev.currentTarget.textContent = muted ? '🔇 소리 켜기' : '🔊 소리 끄기';
+  if (!muted) beep(660, .06, 'sine', .04);
+};
+$('#homeBtn').onclick = () => showHome(true);
+
+showHome(true);   // 들어오면 홈부터
 
 // ══════════════════════════════════ 입력
 /* 화물칸 서랍. 슬롯머신을 화면 정중앙에 두려고 상시 패널에서 뺐음 */
@@ -1896,10 +1984,13 @@ $('#muteBtn').onclick  = ev => {
   if (!muted) beep(660, .06, 'sine', .04);
 };
 document.addEventListener('keydown', ev => {
-  if (ev.code === 'Space'){ ev.preventDefault(); if (!$('#overlay').classList.contains('on')) pullLever(); }
-  if (ev.key === 'c' || ev.key === 'C') toggleCargo();
+  const blocked = $('#overlay').classList.contains('on')
+               || home.classList.contains('on')
+               || guide.classList.contains('on');
+  if (ev.code === 'Space'){ ev.preventDefault(); if (!blocked) pullLever(); }
+  if ((ev.key === 'c' || ev.key === 'C') && !blocked) toggleCargo();
   if (ev.key === 'h' || ev.key === 'H') toggleGuide();
-  if (ev.key === 'Escape'){ toggleGuide(false); toggleCargo(false); }
+  if (ev.key === 'Escape'){ toggleGuide(false); toggleCargo(false); if (inProgress()) showHome(false); }
 });
 
 newGame();
