@@ -548,6 +548,7 @@
   .hhint{margin:20px 0 0; font-size:11px; color:var(--dim)}
   .hhint b{color:var(--o2)}
   #homeBtn{padding:6px 10px; font-size:14px; line-height:1}
+  #skinBtn{padding:6px 12px; font-size:12px; font-weight:800}
 
   /* ── 처음 보는 사람용 안내 */
   .guide{
@@ -672,6 +673,112 @@
   }
   #tip b{display:block; margin-bottom:2px}
   #tip .ds{color:var(--dim); font-size:11px}
+
+  /* ══════════════════════════════════════════════════════
+     심플 모드 — 네온·발광·움직임을 걷어낸 평면 버전.
+     구조와 크기는 그대로 두고 "칠"만 바꾼다. 그래야 두 모드를
+     오가도 레이아웃이 안 흔들리고, 익힌 위치 감각이 유지됨
+     ══════════════════════════════════════════════════════ */
+  body.simple{ --panel:#1b212c; --panel2:#2b3340; --line:#39414f;
+               --o2:#8fd3e4; --bad:#e39191; --good:#8fd0a4; --legend:#dcb96a;
+               --rare:#b9a3d8; --uncommon:#8fb2d8; --dim:#98a2b3; }
+
+  /* 배경 — 움직이는 것 전부 정지, 성운도 걷어냄 */
+  body.simple #space{ background:#141821 }
+  body.simple .slayer,
+  body.simple .drift,
+  body.simple #space .planet,
+  body.simple #space::after{ display:none }
+
+  /* 캐비닛 — 아치와 네온 튜브를 없애고 평범한 패널로 */
+  body.simple .cabinet{
+    border-radius:14px; margin-right:118px;
+    background:#1b212c; border:1px solid #39414f; box-shadow:none; backdrop-filter:none;
+  }
+  body.simple .cabinet::before{ display:none }
+  body.simple .topper{ padding:12px 16px 10px; border-bottom:1px solid #2b323f }
+  body.simple .topper .bulbrow,
+  body.simple .topper .deco{ display:none }
+  body.simple .topper .sign{ gap:8px; margin-top:0 }
+  body.simple .topper h2{ font-size:13px; letter-spacing:3px; color:#c3ccdb; text-shadow:none; font-weight:700 }
+  body.simple .topper h2 b{ display:inline; font-size:13px; letter-spacing:3px; margin-left:7px;
+                            color:#c3ccdb; text-shadow:none }
+
+  /* 릴 창 — 유리 반사와 발광 제거 */
+  body.simple .window{
+    background:#232a35; border:1px solid #39414f; box-shadow:none; border-radius:10px;
+  }
+  body.simple .window .glass{ display:none }
+
+  /* 콘솔 · 계기 */
+  body.simple .console{
+    background:#232a35; border-color:#39414f; box-shadow:none; border-radius:10px;
+  }
+  body.simple .g{
+    background:#1b212c; border-color:#39414f; box-shadow:none; backdrop-filter:none; border-radius:10px;
+  }
+  body.simple .g.big b{ text-shadow:none; color:#e8edf5 }
+  body.simple .g.o2 b,
+  body.simple .g.cost b{ text-shadow:none }
+  body.simple .g .dots i{ background:#39414f }
+  body.simple .g .dots i.on{ background:var(--o2); box-shadow:none }
+  body.simple .seg{
+    background:#12161e; border-color:#39414f; box-shadow:inset 0 2px 5px rgba(0,0,0,.5);
+  }
+  body.simple .seg i{ color:rgba(255,255,255,.06) }
+  body.simple .seg b{ color:#d9e2ee; text-shadow:none }
+  body.simple .seg u,
+  body.simple .seg.score span{ color:var(--dim) }
+  body.simple .pill.cyan{ background:#38566b; border-color:#4b6e86; color:#e8f3f8; box-shadow:none }
+  body.simple .pill.pink{ background:#5a3f52; border-color:#7a5771; color:#f6e9f1; box-shadow:none }
+  body.simple .payout{ background:#12161e; border-color:#2b323f }
+  body.simple .payout .coinin{ border-color:#39414f; color:var(--dim) }
+  body.simple .payout .purbar{ background:#12161e; box-shadow:inset 0 2px 5px rgba(0,0,0,.6) }
+  body.simple .payout .purbar i{ background:#7f93b5; box-shadow:none }
+  body.simple .payout .paylabel{ color:#c3ccdb; text-shadow:none }
+  body.simple .payout .paylabel b{ color:var(--legend); text-shadow:none }
+  body.simple .payout.drop .coinin{ box-shadow:none }
+  body.simple .payout .coin{ box-shadow:none; background:#d8b45c }
+
+  /* 레버 — 발광 없이 금속만 */
+  body.simple .lever .knob{
+    background:radial-gradient(circle at 34% 28%, #e5a5a5, #b45c5c 55%, #7d3535);
+    box-shadow:0 3px 8px rgba(0,0,0,.5), inset 0 -3px 6px rgba(0,0,0,.3);
+  }
+  body.simple .lever .shaft{ background:linear-gradient(90deg,#4b5364,#c8d1e0 38%,#6b7383) }
+  body.simple .lever .pivot{ background:#39414f; border-color:#4b5364; box-shadow:none }
+  body.simple .lever .trail{ border-right-color:rgba(255,255,255,.14) }
+  body.simple .lever:hover:not(.off) .trail{ border-right-color:rgba(255,255,255,.28) }
+  body.simple .lever.pulled .trail{ border-right-color:rgba(255,255,255,.4) }
+  body.simple .lever.fresh .arm{ animation:none }      /* 유휴 까딱임도 끔 */
+  body.simple .lever.fresh .hint{ animation:none; color:var(--dim) }
+
+  /* 카드 · 모달 · 패널 */
+  body.simple .card,
+  body.simple .modal,
+  body.simple .drawer{ background:#1b212c; border-color:#39414f; box-shadow:none; backdrop-filter:none }
+  body.simple .pickcard{ background:#232a35 }
+  body.simple .pickcard.ready:hover{ background:#2b3340; box-shadow:0 6px 16px rgba(0,0,0,.4) }
+  body.simple .pickcard.kb{ box-shadow:0 0 0 2px var(--o2) }
+  body.simple .life b{ text-shadow:none }
+  body.simple .cargotoggle{ background:#1b212c; border-color:#39414f; box-shadow:none }
+  body.simple .cargotoggle b{ background:#2b3340; color:var(--o2) }
+  body.simple .chip{ background:#2b3340; border-color:#39414f }
+  body.simple .guide .gbox,
+  body.simple .home{ box-shadow:none }
+  body.simple .gbox{ background:#1b212c; border-color:#39414f }
+  body.simple .gtabs{ background:#171d26; border-color:#2b323f }
+  body.simple .hbox h1,
+  body.simple .hbox h1 b{ text-shadow:none; color:#dbe3f0; letter-spacing:5px }
+  body.simple .hbox h1 b{ color:#c3ccdb }
+  body.simple .hsign .deco{ display:none }
+  body.simple .hbtn.go{ background:#38566b; border-color:#4b6e86; color:#e8f3f8; box-shadow:none }
+  body.simple .hbest b{ text-shadow:none }
+  body.simple body.draining .g.o2 b{ text-shadow:none }
+  body.simple .g.o2 b, body.simple .g.cost b, body.simple .g.big b{ text-shadow:none }
+
+  /* 흔들림은 남기되 폭을 줄임 — 산소가 깎이는 건 여전히 알아야 하니까 */
+  body.simple.draining .g.o2{ animation-duration:.6s }
 </style>
 </head>
 <body>
@@ -683,6 +790,7 @@
       <h1>우주탐험<small>slot roguelike v0.5</small></h1>
       <div class="spacer"></div>
       <div class="mini best"><span>최고기록</span><b id="sBest">0</b></div>
+      <button id="skinBtn" title="화면 모드 (S)">✨ 네온</button>
       <button id="homeBtn" title="홈으로">🏠</button>
       <button id="guideBtn" title="처음 보는 사람용 안내 (H)">? 도움말</button>
       <button id="muteBtn" title="소리 켜기/끄기">🔊</button>
@@ -1243,6 +1351,20 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
   });
 }
 
+/* 캔버스 색은 CSS가 못 건드리니 스킨 객체로 따로 둔다.
+   네온은 발광·반투명 위주, 심플은 불투명한 회청색 평면 */
+const SKINS = {
+  neon:   { board:'rgba(16,22,40,.6)',  cellOn:'rgba(38,46,66,.92)', cellOff:'rgba(22,28,45,.72)',
+            line:'#3b455e', bar:'rgba(150,225,255,.45)', reel:'rgba(31,38,58,.95)', vig:'8,12,24',
+            pos:'#6fdcff', neg:'#ff7b7b', posBg:'rgba(111,220,255,.18)', negBg:'rgba(255,123,123,.18)',
+            hotPos:'111,220,255', hotNeg:'255,123,123', glow:1 },
+  simple: { board:'#1b212c',            cellOn:'#2b3340',            cellOff:'#232a35',
+            line:'#39414f', bar:'rgba(255,255,255,.09)', reel:'#262e3a', vig:'18,22,30',
+            pos:'#8fd3e4', neg:'#e39191', posBg:'rgba(143,211,228,.14)', negBg:'rgba(227,145,145,.14)',
+            hotPos:'143,211,228', hotNeg:'227,145,145', glow:0 },
+};
+let skin = SKINS.neon;
+
 // ══════════════════════════════════ 그리기
 const cv = $('#reel'), cx = cv.getContext('2d');
 (function setupCanvas(){
@@ -1267,7 +1389,7 @@ function roundRect(x,y,w,h,r){
 
 function draw(){
   cx.clearRect(0,0,cv._w,cv._h);
-  cx.fillStyle = 'rgba(16,22,40,.6)';   // 반투명이라 뒤 별이 비침
+  cx.fillStyle = skin.board;
   roundRect(PAD/2, PAD/2, cv._w-PAD, cv._h-PAD, 12); cx.fill();
 
   /* 릴을 가르는 네온 기둥. CSS로 20%씩 나눠 그렸더니 캔버스 실제 칸 경계
@@ -1276,9 +1398,9 @@ function draw(){
   for (let c = 1; c < COLS; c++){
     const x = PAD + GAP + c*(CELL+GAP) - GAP/2;
     const g = cx.createLinearGradient(x-3, 0, x+3, 0);
-    g.addColorStop(0,   'rgba(140,220,255,0)');
-    g.addColorStop(.5,  'rgba(150,225,255,.45)');
-    g.addColorStop(1,   'rgba(140,220,255,0)');
+    g.addColorStop(0,   'rgba(0,0,0,0)');
+    g.addColorStop(.5,  skin.bar);
+    g.addColorStop(1,   'rgba(0,0,0,0)');
     cx.fillStyle = g;
     cx.fillRect(x-3, barTop, 6, barH);
   }
@@ -1296,9 +1418,9 @@ function drawCell(cell, yOff){
   const R = cellRect(cell);
   R.y += yOff || 0;
 
-  cx.fillStyle = cell.entry ? 'rgba(38,46,66,.92)' : 'rgba(22,28,45,.72)';
+  cx.fillStyle = cell.entry ? skin.cellOn : skin.cellOff;
   roundRect(R.x,R.y,R.w,R.h,10); cx.fill();
-  cx.strokeStyle = '#3b455e'; cx.lineWidth = 1;
+  cx.strokeStyle = skin.line; cx.lineWidth = 1;
   roundRect(R.x+.5,R.y+.5,R.w-1,R.h-1,10); cx.stroke();
 
   if (!cell.entry) return;
@@ -1308,11 +1430,11 @@ function drawCell(cell, yOff){
   // 점수 계산 중 이 칸이 관여하면 테두리가 달아오름
   const f = cell.flash || 0;
   if (f > 0){
-    const hot = (cell.val < 0 || cell.dead) ? '255,123,123' : '111,220,255';
+    const hot = (cell.val < 0 || cell.dead) ? skin.hotNeg : skin.hotPos;
     cx.save();
     cx.fillStyle = `rgba(${hot},${.16*f})`;
     roundRect(R.x,R.y,R.w,R.h,10); cx.fill();
-    cx.shadowColor = `rgba(${hot},${.9*f})`; cx.shadowBlur = 20*f;
+    cx.shadowColor = `rgba(${hot},${.9*f})`; cx.shadowBlur = 20*f*skin.glow;
     cx.strokeStyle = `rgba(${hot},${.95*f})`; cx.lineWidth = 2;
     roundRect(R.x+1,R.y+1,R.w-2,R.h-2,10); cx.stroke();
     cx.restore();
@@ -1344,9 +1466,9 @@ function drawCell(cell, yOff){
     const txt = (cell.val > 0 ? '+' : '') + cell.val;
     cx.font = '700 15px system-ui,sans-serif';
     const w = cx.measureText(txt).width + 12;
-    cx.fillStyle = cell.val > 0 ? 'rgba(111,220,255,.18)' : 'rgba(255,123,123,.18)';
+    cx.fillStyle = cell.val > 0 ? skin.posBg : skin.negBg;
     roundRect(R.x+R.w/2-w/2, R.y+R.h-27, w, 20, 6); cx.fill();
-    cx.fillStyle = cell.val > 0 ? '#6fdcff' : '#ff7b7b';
+    cx.fillStyle = cell.val > 0 ? skin.pos : skin.neg;
     cx.fillText(txt, R.x+R.w/2, R.y+R.h-17);
   }
 }
@@ -1358,7 +1480,7 @@ function drawReelCol(c, col){
   const y0 = PAD + GAP;
   const h  = ROWS*CELL + (ROWS-1)*GAP;
 
-  cx.fillStyle = 'rgba(31,38,58,.95)';
+  cx.fillStyle = skin.reel;
   roundRect(x, y0, CELL, h, 10); cx.fill();
 
   cx.save();
@@ -1379,15 +1501,15 @@ function drawReelCol(c, col){
 
   // 릴 창 위아래를 어둡게 — 실제 슬롯 릴통 안쪽 그림자
   const grd = cx.createLinearGradient(0, y0, 0, y0+h);
-  grd.addColorStop(0,   'rgba(8,12,24,.85)');
-  grd.addColorStop(.22, 'rgba(8,12,24,0)');
-  grd.addColorStop(.78, 'rgba(8,12,24,0)');
-  grd.addColorStop(1,   'rgba(8,12,24,.85)');
+  grd.addColorStop(0,   `rgba(${skin.vig},.85)`);
+  grd.addColorStop(.22, `rgba(${skin.vig},0)`);
+  grd.addColorStop(.78, `rgba(${skin.vig},0)`);
+  grd.addColorStop(1,   `rgba(${skin.vig},.85)`);
   cx.fillStyle = grd;
   cx.fillRect(x, y0, CELL, h);
   cx.restore();
 
-  cx.strokeStyle = '#3b455e'; cx.lineWidth = 1;
+  cx.strokeStyle = skin.line; cx.lineWidth = 1;
   roundRect(x+.5, y0+.5, CELL-1, h-1, 10); cx.stroke();
 }
 
@@ -1952,6 +2074,23 @@ $('#hMute').onclick   = ev => {
 };
 $('#homeBtn').onclick = () => showHome(true);
 
+/* 화면 모드 — 네온이 너무 튈 때를 위한 평면 버전.
+   캔버스 색은 CSS가 못 건드리니 skin 객체를 같이 갈아준다 */
+let simpleMode = localStorage.getItem('oxy.skin') === 'simple';
+function applySkin(){
+  document.body.classList.toggle('simple', simpleMode);
+  skin = simpleMode ? SKINS.simple : SKINS.neon;
+  $('#skinBtn').textContent = simpleMode ? '◻︎ 심플' : '✨ 네온';
+  draw();
+}
+$('#skinBtn').onclick = () => {
+  simpleMode = !simpleMode;
+  localStorage.setItem('oxy.skin', simpleMode ? 'simple' : 'neon');
+  applySkin();
+  beep(simpleMode ? 420 : 760, .05, 'sine', .04);
+};
+applySkin();
+
 showHome(true);   // 들어오면 홈부터
 
 // ══════════════════════════════════ 입력
@@ -2000,6 +2139,7 @@ document.addEventListener('keydown', ev => {
                || guide.classList.contains('on');
   if (ev.code === 'Space'){ ev.preventDefault(); if (!blocked) pullLever(); }
   if ((ev.key === 'c' || ev.key === 'C') && !blocked) toggleCargo();
+  if ((ev.key === 's' || ev.key === 'S') && !blocked) $('#skinBtn').click();
   if (ev.key === 'h' || ev.key === 'H') toggleGuide();
   if (ev.key === 'Escape'){ toggleGuide(false); toggleCargo(false); if (inProgress()) showHome(false); }
 });
