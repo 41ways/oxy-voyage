@@ -901,6 +901,21 @@
 <script src="engine.js"></script>
 <script>
 "use strict";
+/* engine.js가 안 실려 오면 아래 코드가 전부 ReferenceError로 죽고
+   화면만 남아 "그림뿐인 페이지"가 된다. 왜 그런지는 알려줘야 함 */
+if (typeof SYMBOLS === 'undefined'){
+  document.body.innerHTML =
+    '<div style="max-width:620px;margin:14vh auto;padding:28px;font:14px/1.9 system-ui;' +
+    'color:#e8ecf4;background:#1b212c;border:1px solid #39414f;border-radius:14px">' +
+    '<h2 style="margin:0 0 10px">engine.js를 불러오지 못했습니다</h2>' +
+    '<p style="color:#98a2b3;margin:0 0 14px">규칙 엔진이 없으면 게임이 돌지 않습니다. ' +
+    'index.html 과 engine.js 가 같은 폴더에 있어야 합니다.</p>' +
+    '<p style="color:#98a2b3;margin:0">브라우저가 file:// 에서 옆 파일 읽기를 막는 경우라면, ' +
+    '폴더에서 아래를 실행하고 <b style="color:#8fd3e4">http://localhost:8000</b> 으로 여세요.</p>' +
+    '<pre style="background:#12161e;padding:12px 14px;border-radius:9px;margin:12px 0 0;' +
+    'color:#8fd3e4">python3 -m http.server 8000</pre></div>';
+  throw new Error('engine.js not loaded');
+}
 /* ══════════════════════════════════════════════════════════════════
    우주탐험 — 화면과 진행
    ─ 규칙(심볼 테이블, 점수 판정, 소모량 곡선)은 전부 engine.js에 있음.
@@ -921,8 +936,15 @@ const CELL = 96, GAP = 8, PAD = 8;
 const PICK_COUNT = 4;
 
 const $ = s => document.querySelector(s);
+
+/* localStorage는 file:// 이나 사생활 보호 모드에서 접근만으로 예외를 던진다.
+   최상단에서 터지면 스크립트가 통째로 죽어 "그림만 있는 페이지"가 되므로 감싼다 */
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+};
 /* 연출 배속. 대기시간을 전부 여기로 통과시켜서 버튼 하나로 조절됨 */
-let speed = Math.min(Number(localStorage.getItem('oxy.speed') || 1), 2);
+let speed = Math.min(Number(store.get('oxy.speed') || 1), 2);
 const sleep = ms => new Promise(r => setTimeout(r, ms / speed));
 
 // ══════════════════════════════════ 상태
@@ -934,7 +956,7 @@ const disp = { coins:0, lock:false };        // 화면에 보여줄 O₂ (실제
 // ══════════════════════════════════ 소리
 /* 오실레이터 하나로 끝내는 최소 구현. 슬롯은 소리가 절반이라 안 넣을 수가 없음.
    AudioContext는 첫 클릭(스핀 버튼) 안에서 만들어져서 자동재생 정책에 안 걸림 */
-let actx = null, muted = localStorage.getItem('oxy.muted') !== '0';   // 기본은 음소거
+let actx = null, muted = store.get('oxy.muted') !== '0';   // 기본은 음소거
 function beep(freq, dur, type, gain){
   if (muted) return;
   try{
@@ -1004,7 +1026,7 @@ function newGame(){
 }
 
 function score(){ return game.paidTotal + game.coins; }
-function best(){ return Number(localStorage.getItem('oxy.best') || 0); }
+function best(){ return Number(store.get('oxy.best') || 0); }
 
 /* 스핀 한 번에 동전 하나. 애니메이션을 다시 트리거하려면 클래스를 뗐다가
    레이아웃을 한 번 읽어서 강제로 리플로우시켜야 함 */
@@ -1253,7 +1275,7 @@ function maintenance(){
 async function gameOver(){
   const s = score(), b = best();
   const isNew = s > b;
-  if (isNew) localStorage.setItem('oxy.best', String(s));
+  if (isNew) store.set('oxy.best', String(s));
   await modal({
     title: isNew ? '🎉 신기록!' : '표류',
     sub: `${game.round}구역까지 항해 · 점수 ${s}점` + (isNew ? '' : ` · 최고기록 ${b}점`),
@@ -1388,6 +1410,7 @@ function roundRect(x,y,w,h,r){
 }
 
 function draw(){
+  if (!game) return;                 // 초기화 전에 불려도 죽지 않게
   cx.clearRect(0,0,cv._w,cv._h);
   cx.fillStyle = skin.board;
   roundRect(PAD/2, PAD/2, cv._w-PAD, cv._h-PAD, 12); cx.fill();
@@ -2067,7 +2090,7 @@ $('#hStart').onclick  = () => { newGame(); showHome(false); beep(560,.07,'triang
 $('#hGuide').onclick  = () => { guideFromHome = true; showHome(false); toggleGuide(true); };
 $('#hMute').onclick   = ev => {
   muted = !muted;
-  localStorage.setItem('oxy.muted', muted ? '1' : '0');
+  store.set('oxy.muted', muted ? '1' : '0');
   $('#muteBtn').textContent = muted ? '🔇' : '🔊';
   ev.currentTarget.textContent = muted ? '🔇 소리 켜기' : '🔊 소리 끄기';
   if (!muted) beep(660, .06, 'sine', .04);
@@ -2076,7 +2099,7 @@ $('#homeBtn').onclick = () => showHome(true);
 
 /* 화면 모드 — 네온이 너무 튈 때를 위한 평면 버전.
    캔버스 색은 CSS가 못 건드리니 skin 객체를 같이 갈아준다 */
-let simpleMode = localStorage.getItem('oxy.skin') === 'simple';
+let simpleMode = store.get('oxy.skin') !== 'neon';
 function applySkin(){
   document.body.classList.toggle('simple', simpleMode);
   skin = simpleMode ? SKINS.simple : SKINS.neon;
@@ -2085,13 +2108,10 @@ function applySkin(){
 }
 $('#skinBtn').onclick = () => {
   simpleMode = !simpleMode;
-  localStorage.setItem('oxy.skin', simpleMode ? 'simple' : 'neon');
+  store.set('oxy.skin', simpleMode ? 'simple' : 'neon');
   applySkin();
   beep(simpleMode ? 420 : 760, .05, 'sine', .04);
 };
-applySkin();
-
-showHome(true);   // 들어오면 홈부터
 
 // ══════════════════════════════════ 입력
 /* 화물칸 서랍. 슬롯머신을 화면 정중앙에 두려고 상시 패널에서 뺐음 */
@@ -2122,14 +2142,14 @@ const showSpeed = () => { $('#speedRead').textContent = speed.toFixed(1); };
 showSpeed();
 $('#speedBtn').onclick = () => {
   speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
-  localStorage.setItem('oxy.speed', String(speed));
+  store.set('oxy.speed', String(speed));
   showSpeed();
   beep(880, .04, 'square', .04);
 };
 $('#muteBtn').textContent = muted ? '🔇' : '🔊';
 $('#muteBtn').onclick  = ev => {
   muted = !muted;
-  localStorage.setItem('oxy.muted', muted ? '1' : '0');
+  store.set('oxy.muted', muted ? '1' : '0');
   ev.currentTarget.textContent = muted ? '🔇' : '🔊';
   if (!muted) beep(660, .06, 'sine', .04);
 };
@@ -2145,6 +2165,8 @@ document.addEventListener('keydown', ev => {
 });
 
 newGame();
+applySkin();       // 판이 선 뒤에 칠한다 — draw()가 game을 읽으므로
+showHome(true);    // 들어오면 홈부터
 </script>
 </body>
 </html>
