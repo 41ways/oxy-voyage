@@ -1,4 +1,6 @@
-# 우주탐험
+# 🚀 우주탐험
+
+![종류](https://img.shields.io/badge/%EC%A2%85%EB%A5%98-%EB%A1%9C%EA%B7%B8%EB%9D%BC%EC%9D%B4%ED%81%AC-7c5cff?style=flat-square) ![인원](https://img.shields.io/badge/%EC%9D%B8%EC%9B%90-1%EC%9D%B8-555?style=flat-square) [![플레이](https://img.shields.io/badge/%ED%94%8C%EB%A0%88%EC%9D%B4-41ways.github.io/oxy--voyage-d8332b?style=flat-square)](https://41ways.github.io/oxy-voyage/) [![허브](https://img.shields.io/badge/%ED%97%88%EB%B8%8C-41ways%EC%9D%98%20%EB%A0%88%EB%93%9C%EB%B2%84%ED%8A%BC-b4571f?style=flat-square)](https://41ways.github.io/norara/)
 
 슬롯머신 로그라이크. 릴을 굴려 나온 심볼(elements)의 시너지로 산소를 만들고,
 구역이 끝날 때 생명유지장치가 산소를 가져간다. 못 대면 표류 — 얼마나 멀리 갔나가 기록.
@@ -8,6 +10,19 @@
 ```bash
 open index.html
 ```
+
+## 한눈에
+
+| | |
+|---|---|
+| **종류** | 로그라이크 · 싱글 |
+| **인원** | 1인 |
+| **플레이** | **https://41ways.github.io/oxy-voyage/** |
+| **로컬 실행** | `open index.html` |
+| **한 줄 규칙** | 릴을 굴려 심볼 시너지로 산소를 만들고, 구역마다 생명유지장치에 산소를 바친다 |
+| **허브** | https://41ways.github.io/norara/ |
+
+**목차** — [파일](#파일) · [심볼 추가하는 법](#심볼-추가하는-법) · [정족수 — 고점 덱의 진입장벽](#정족수--고점-덱의-진입장벽) · [사람과 봇을 나눠서 잰다](#사람과-봇을-나눠서-잰다) · [밸런스 (v0.7 · 900판)](#밸런스-v07--900판) · [현재 상태 (v0.5)](#현재-상태-v05)
 
 ## 파일
 
