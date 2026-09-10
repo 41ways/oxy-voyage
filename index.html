@@ -1216,6 +1216,12 @@ async function settleLifeSupport(){
    모달로 세우고, 현재 산소량을 충분히 보여준 뒤, HUD를 흔들며 깎아내림 */
 function drainModal(due, ok){
   const before = game.coins;
+  // 깎는 일은 1.1초 뒤에 일어나는데 「계속」은 그전에도 눌린다.
+  // 급하게 누르면 그 타이머가 다음 화면까지 살아남아 그때 산소량을 덮어썼다.
+  // 언제 닫히든 딱 한 번만 반영되게 하고, 남은 타이머는 끊는다.
+  let applied = false, drainT = 0;
+  // 산소가 모자라 표류하는 경우(!ok)에는 깎지 않는다 — 깎으면 결과 화면에 음수가 뜬다
+  const apply = () => { if (applied || !ok) return; applied = true; game.coins = before - due; };
   return modal({
     title: ok ? '생명유지 정산' : '산소 고갈',
     sub: ok
@@ -1230,9 +1236,10 @@ function drainModal(due, ok){
     onOpen: () => {
       if (!ok){ beep(180,.5,'sawtooth',.06); setTimeout(()=>beep(120,.7,'sawtooth',.06), 220); return; }
       // 깎기 전에 지금 산소량을 충분히 보여줌 — 바로 깎으면 얼마였는지가 안 읽힘
-      setTimeout(() => {
+      drainT = setTimeout(() => {
+        if (applied) return;                                  // 이미 닫혔으면 손대지 않는다
         document.body.classList.add('draining');
-        game.coins = before - due;
+        apply();
         const ms = Math.min(1600, 550 + due * 3.5) / speed;   // 많이 깎일수록 조금 더 오래
         drainNumber(before, game.coins, ms).then(() => {
           document.body.classList.remove('draining');
@@ -1241,6 +1248,13 @@ function drainModal(due, ok){
         });
       }, 1100 / speed);
     },
+  }).then((v) => {
+    // 버튼으로 건너뛰었더라도 산소는 반드시 여기서 한 번 깎인다
+    clearTimeout(drainT);
+    document.body.classList.remove('draining');
+    apply();
+    render();
+    return v;
   });
 }
 
