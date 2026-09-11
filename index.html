@@ -697,6 +697,8 @@
     background:#1b212c; border:1px solid #39414f; box-shadow:none; backdrop-filter:none;
   }
   body.simple .cabinet::before{ display:none }
+  /* 좁은 화면에서는 레버가 아래로 내려가므로 오른쪽 자리가 필요 없다 — 두면 릴이 좁아지고 옆으로 밀렸다 */
+  @media (max-width:980px){ body.simple .cabinet{ margin-right:0 } }
   body.simple .topper{ padding:12px 16px 10px; border-bottom:1px solid #2b323f }
   body.simple .topper .bulbrow,
   body.simple .topper .deco{ display:none }
@@ -1027,7 +1029,7 @@ function newGame(){
 }
 
 function score(){ return game.paidTotal + game.coins; }
-function best(){ return Number(store.get('oxy.best') || 0); }
+function best(){ const n = Number(store.get('oxy.best') || 0); return Number.isFinite(n) ? n : 0; }   // 깨진 값이면 0부터
 
 /* 스핀 한 번에 동전 하나. 애니메이션을 다시 트리거하려면 클래스를 뗐다가
    레이아웃을 한 번 읽어서 강제로 리플로우시켜야 함 */
@@ -1253,6 +1255,7 @@ function drainModal(due, ok){
     clearTimeout(drainT);
     document.body.classList.remove('draining');
     apply();
+    disp.lock = false; disp.coins = game.coins;     // 차감 연출을 건너뛰면 숫자가 옛 값에 멈춰 있었다
     render();
     return v;
   });
@@ -1268,6 +1271,7 @@ function maintenance(){
       counts.map(c => `<div class="chip pick" data-id="${c.id}" data-uid="${c.uid}">${SYMBOLS[c.id].e}${c.bg ? `<u>${c.bg}</u>` : ''}<i>${c.k}</i></div>`).join('')
     }</div>`,
     buttons: [{ label:'그냥 두기', value:null }],
+    startOnButton: true,
     onPick: el => el.closest('.chip') ? +el.closest('.chip').dataset.uid : null,
   }).then(uid => {
     if (uid){
@@ -1305,7 +1309,7 @@ async function gameOver(){
 }
 
 // ══════════════════════════════════ 모달
-function modal({ title, sub, body, buttons, onPick, onOpen }){
+function modal({ title, sub, body, buttons, onPick, onOpen, startOnButton }){
   return new Promise(resolve => {
     const ov = $('#overlay');
     // 직전 모달이 예약해둔 뒷정리 타이머 취소.
@@ -1327,7 +1331,9 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
        ← → ↑ ↓ 이동 · Space 선택.
        건너뛰기 버튼도 이동 대상에 넣어서, 고르는 것도 넘기는 것도 전부 Space 하나로 */
     const items = [...ov.querySelectorAll('.pickcard, .chip.pick, .foot button')];
+    // startOnButton — 고르면 되돌릴 수 없는 창(정비)은 '그냥 두기'에서 시작한다. Space 한 번에 카드가 버려졌다
     let kb = items.length ? 0 : -1;
+    if (startOnButton){ const fb = items.findIndex(el => el.matches('.foot button')); if (fb >= 0) kb = fb; }
     const paint = () => items.forEach((el, i) => el.classList.toggle('kb', i === kb));
     paint();
     items.forEach((el, i) => el.addEventListener('mouseenter', () => { kb = i; paint(); }));
@@ -1359,6 +1365,8 @@ function modal({ title, sub, body, buttons, onPick, onOpen }){
     const onKey = ev => {
       if (ev.code === 'Space'){                       // 지금 짚고 있는 걸 고른다
         ev.preventDefault(); ev.stopPropagation();
+        if (ev.repeat) return;                        // 누르고 있는 Space 로 다음 창까지 연달아 고르지 않게
+        if (home.classList.contains('on') || guide.classList.contains('on')) return;   // 홈·안내에 가려진 창
         if (kb < 0){ done(buttons[buttons.length-1].value); return; }
         const el = items[kb];
         const btn = el.matches('button[data-b]') ? el : null;
@@ -2101,7 +2109,11 @@ function showHome(on){
   }
 }
 $('#hResume').onclick = () => showHome(false);
-$('#hStart').onclick  = () => { newGame(); showHome(false); beep(560,.07,'triangle',.05); };
+$('#hStart').onclick  = () => {
+  // 릴이 도는 중에 새 항해를 열면 끝나 가던 spin() 이 새 판에 산소·스핀을 얹었다 — 멈춘 뒤에만
+  if (busy){ beep(200,.06,'square',.03); return; }
+  newGame(); showHome(false); beep(560,.07,'triangle',.05);
+};
 $('#hGuide').onclick  = () => { guideFromHome = true; showHome(false); toggleGuide(true); };
 $('#hMute').onclick   = ev => {
   muted = !muted;
@@ -2169,10 +2181,11 @@ $('#muteBtn').onclick  = ev => {
   if (!muted) beep(660, .06, 'sine', .04);
 };
 document.addEventListener('keydown', ev => {
+  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
   const blocked = $('#overlay').classList.contains('on')
                || home.classList.contains('on')
                || guide.classList.contains('on');
-  if (ev.code === 'Space'){ ev.preventDefault(); if (!blocked) pullLever(); }
+  if (ev.code === 'Space'){ ev.preventDefault(); if (!blocked && !ev.repeat) pullLever(); }
   if ((ev.key === 'c' || ev.key === 'C') && !blocked) toggleCargo();
   if ((ev.key === 's' || ev.key === 'S') && !blocked) $('#skinBtn').click();
   if (ev.key === 'h' || ev.key === 'H') toggleGuide();
