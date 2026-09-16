@@ -976,6 +976,14 @@ function beep(freq, dur, type, gain){
 
 // ══════════════════════════════════ O₂ 숫자 굴리기
 /* 벌 때는 감속하며 따라붙고(티커), 깎일 때는 전광판처럼 선형으로 떨어짐 */
+// 판 수 세기 — 사람이 새 항해를 누른 것만 센다. newGame() 자체는 페이지를 열 때와
+// 게임 오버 뒤에도 불려서, 거기에 넣으면 실제 플레이의 두 배 가까이 세어진다.
+let statAt = 0;
+function countStart() {
+  statAt = Date.now();
+  if (window.norara) norara.ev('start', { n: 1 });
+}
+
 let ticker = 0;
 function startTicker(){
   if (ticker) return;
@@ -1295,6 +1303,11 @@ async function gameOver(){
   const s = score(), b = best();
   const isNew = s > b;
   if (isNew) store.set('oxy.best', String(s));
+  // 판당 한 번 — game.over 가 서고 나면 spin() 이 막혀서 여기로 다시 오지 않는다
+  if (window.norara && statAt) {
+    norara.ev('end', { n: 1, sec: Math.round((Date.now() - statAt) / 1000) });
+    statAt = 0;
+  }
   await modal({
     title: isNew ? '🎉 신기록!' : '표류',
     sub: `${game.round}구역까지 항해 · 점수 ${s}점` + (isNew ? '' : ` · 최고기록 ${b}점`),
@@ -2112,7 +2125,7 @@ $('#hResume').onclick = () => showHome(false);
 $('#hStart').onclick  = () => {
   // 릴이 도는 중에 새 항해를 열면 끝나 가던 spin() 이 새 판에 산소·스핀을 얹었다 — 멈춘 뒤에만
   if (busy){ beep(200,.06,'square',.03); return; }
-  newGame(); showHome(false); beep(560,.07,'triangle',.05);
+  newGame(); countStart(); showHome(false); beep(560,.07,'triangle',.05);
 };
 $('#hGuide').onclick  = () => { guideFromHome = true; showHome(false); toggleGuide(true); };
 $('#hMute').onclick   = ev => {
@@ -2163,7 +2176,7 @@ async function pullLever(){
 }
 lever.onclick = pullLever;
 
-$('#resetBtn').onclick = () => { if (!busy) newGame(); };
+$('#resetBtn').onclick = () => { if (!busy) { newGame(); countStart(); } };
 const SPEEDS = [1, 1.5, 2];
 const showSpeed = () => { $('#speedRead').textContent = speed.toFixed(1); };
 showSpeed();
@@ -2210,6 +2223,32 @@ showHome(true);    // 들어오면 홈부터
   sc.src = "https://gc.zgo.at/count.js";
   sc.setAttribute("data-goatcounter", "https://41ways.goatcounter.com/count");
   document.head.appendChild(sc);
+
+  // 판 수·인원·걸린 시간 — 게임 코드에서 norara.ev("start", { n: 인원 }) 처럼 부른다.
+  // 날짜·게임·이름으로 묶어 더하기만 하므로 한 판에 한 줄씩 쌓이지 않는다.
+  window.norara = {
+    ev: function (name, o) {
+      o = o || {};
+      o.app = APP;
+      o.ev = name;
+      try {
+        navigator.sendBeacon("https://norara-errors.41ways.workers.dev/ev", JSON.stringify(o));
+      } catch (e) {}
+    }
+  };
+
+  // 얼마나 머물렀는지 — 탭을 덮거나 닫을 때 한 번만. pagehide 만으로는 폰에서 자주 놓친다.
+  var came = Date.now(), told = false;
+  function leaving() {
+    if (told) return;
+    told = true;
+    var sec = Math.round((Date.now() - came) / 1000);
+    if (sec >= 5) window.norara.ev("visit", { sec: sec });   // 스쳐 간 것은 빼고
+  }
+  addEventListener("pagehide", leaving);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") leaving();
+  });
 
   // 화면에서 터진 오류를 모은다. 한 번 열 때 다섯 건까지만 — 같은 오류가 쏟아져도 한도를 안 태우게.
   var left = 5;
